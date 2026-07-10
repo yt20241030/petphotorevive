@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!jobId) {
     return NextResponse.json({ error: "Missing jobId." }, { status: 400 });
   }
-  const job = getJob(jobId);
+  const job = await getJob(jobId);
   if (!job) {
     return NextResponse.json({ error: "Job not found or expired, please re-upload." }, { status: 404 });
   }
@@ -40,6 +40,6 @@ export async function POST(req: NextRequest) {
   // pipeline is exercised in demo mode — mark paid directly instead of a
   // real checkout redirect. This path stops existing entirely the moment
   // DODO_API_KEY is configured (see branch above).
-  markPaid(jobId);
+  await markPaid(jobId);
   return NextResponse.json({ demo: true, redirectUrl: `/?jobId=${jobId}&paid=1`, priceUsd: PRICE_USD });
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRestoreEngine } from "@/lib/engine";
 import { makeWatermarkedPreview } from "@/lib/watermark";
-import { createJob, findJobByHash, hashContent } from "@/lib/jobStore";
+import { createJob, findJobByHash, getPreviewBuffer, hashContent } from "@/lib/jobStore";
 import { checkAndConsumeFreeUpload } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
@@ -30,13 +30,16 @@ export async function POST(req: NextRequest) {
   const input = Buffer.from(await file.arrayBuffer());
   const contentHash = hashContent(input);
 
-  const cached = findJobByHash(contentHash);
+  const cached = await findJobByHash(contentHash);
   if (cached) {
-    return NextResponse.json({
-      jobId: cached.id,
-      engine: cached.engine,
-      previewDataUrl: `data:image/jpeg;base64,${cached.previewBuffer.toString("base64")}`,
-    });
+    const previewBuffer = await getPreviewBuffer(cached.id);
+    if (previewBuffer) {
+      return NextResponse.json({
+        jobId: cached.id,
+        engine: cached.engine,
+        previewDataUrl: `data:image/jpeg;base64,${previewBuffer.toString("base64")}`,
+      });
+    }
   }
 
   const ip = clientIp(req);
@@ -52,7 +55,7 @@ export async function POST(req: NextRequest) {
   const { buffer: cleanBuffer } = await engine.restore(input);
   const previewBuffer = await makeWatermarkedPreview(cleanBuffer);
 
-  const job = createJob({ contentHash, engine: engine.name, cleanBuffer, previewBuffer });
+  const job = await createJob({ contentHash, engine: engine.name, cleanBuffer, previewBuffer });
 
   return NextResponse.json({
     jobId: job.id,

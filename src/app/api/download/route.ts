@@ -10,15 +10,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing jobId or token." }, { status: 400 });
   }
 
-  const job = consumeDownloadToken(jobId, token);
-  if (!job) {
+  const cleanBuffer = await consumeDownloadToken(jobId, token);
+  if (!cleanBuffer) {
     return NextResponse.json({ error: "Link is invalid, already used, or expired." }, { status: 403 });
   }
 
-  return new NextResponse(new Uint8Array(job.cleanBuffer), {
+  return new NextResponse(new Uint8Array(cleanBuffer), {
     headers: {
       "Content-Type": "image/jpeg",
-      "Content-Disposition": `attachment; filename="petphotorevive-${job.id}.jpg"`,
+      "Content-Disposition": `attachment; filename="petphotorevive-${jobId}.jpg"`,
       "Cache-Control": "no-store",
     },
   });

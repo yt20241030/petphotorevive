@@ -7,11 +7,11 @@ export async function GET(req: NextRequest) {
   const jobId = req.nextUrl.searchParams.get("jobId");
   if (!jobId) return NextResponse.json({ error: "Missing jobId." }, { status: 400 });
 
-  const job = getJob(jobId);
+  const job = await getJob(jobId);
   if (!job) return NextResponse.json({ error: "Job not found or expired." }, { status: 404 });
   if (!job.paid) return NextResponse.json({ error: "Payment required." }, { status: 402 });
 
-  const issued = issueDownloadToken(jobId);
+  const issued = await issueDownloadToken(jobId);
   if (!issued) return NextResponse.json({ error: "Could not issue download link." }, { status: 500 });
 
   return NextResponse.json({
