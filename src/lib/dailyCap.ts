@@ -1,3 +1,5 @@
+import { getBlobToken } from "./blobToken";
+
 const DAILY_RESTORE_LIMIT = Number(process.env.DAILY_RESTORE_LIMIT ?? 500);
 
 /**
@@ -11,7 +13,7 @@ const DAILY_RESTORE_LIMIT = Number(process.env.DAILY_RESTORE_LIMIT ?? 500);
  * boundary could each see 499 and both proceed — worst case the cap
  * overshoots by a handful of calls, which is acceptable for a spend guard.
  */
-const useBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+const useBlob = () => Boolean(getBlobToken());
 
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
@@ -32,7 +34,7 @@ async function readBlobCount(date: string): Promise<number> {
     // list({prefix}) instead, and bust the CDN cache with a unique query
     // (this counter is overwritten in place on every increment).
     const pathname = blobPath(date);
-    const { blobs } = await list({ prefix: pathname, limit: 1 });
+    const { blobs } = await list({ prefix: pathname, limit: 1, token: getBlobToken() });
     const hit = blobs.find((b) => b.pathname === pathname);
     if (!hit) return 0;
     const crypto = await import("crypto");
@@ -52,13 +54,14 @@ async function writeBlobCount(date: string, count: number): Promise<void> {
     contentType: "application/json",
     addRandomSuffix: false,
     allowOverwrite: true,
+    token: getBlobToken(),
   });
 }
 
 /** Call BEFORE invoking Replicate — true means the day's budget still has room. */
 export async function hasDailyCapacity(): Promise<boolean> {
   const date = todayUtc();
-  if (useBlob) {
+  if (useBlob()) {
     return (await readBlobCount(date)) < DAILY_RESTORE_LIMIT;
   }
   const mem = globalStore.__petphotorevive_dailyCap;
@@ -69,7 +72,7 @@ export async function hasDailyCapacity(): Promise<boolean> {
 /** Call AFTER a successful Replicate restoration to consume one unit. */
 export async function recordRestoreCall(): Promise<void> {
   const date = todayUtc();
-  if (useBlob) {
+  if (useBlob()) {
     const count = await readBlobCount(date);
     await writeBlobCount(date, count + 1);
     return;

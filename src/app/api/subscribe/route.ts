@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { getBlobToken } from "@/lib/blobToken";
 
 export const runtime = "nodejs";
 
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
 
   const record = { email: cleaned, jobId: jobId ?? null, at: new Date().toISOString() };
 
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
+  if (getBlobToken()) {
     const { put } = await import("@vercel/blob");
     // Hash-keyed path so the same email resubscribing just overwrites
     // itself instead of piling up duplicates.
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
       contentType: "application/json",
       addRandomSuffix: false,
       allowOverwrite: true,
+      token: getBlobToken(),
     });
   } else {
     const list = (globalStore.__petphotorevive_emails ??= []);

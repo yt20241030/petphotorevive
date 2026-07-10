@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { getBlobToken } from "./blobToken";
 
 export interface Job {
   id: string;
@@ -24,13 +25,14 @@ export function hashContent(buffer: Buffer): string {
 /**
  * Vercel deploys each API route as its own isolated serverless function —
  * they do NOT share process memory, even warm. A plain in-memory Map only
- * works for local `next dev`. In production (BLOB_READ_WRITE_TOKEN present
- * once the project's Blob store is connected in the Vercel dashboard) jobs
+ * works for local `next dev`. In production (a Blob store connected in the
+ * Vercel dashboard, token env var under its default or prefixed name) jobs
  * are persisted to Vercel Blob instead so upload -> pay -> download works
  * across separate function invocations. No app code outside this file
- * needs to know which backend is active.
+ * needs to know which backend is active. Evaluated per call, not at module
+ * load, so env changes apply without a rebuild.
  */
-const useBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+const useBlob = () => Boolean(getBlobToken());
 
 // ---------------------------------------------------------------------
 // In-memory backend (local dev fallback)
@@ -72,12 +74,19 @@ async function blobPutJson(pathname: string, data: unknown) {
     contentType: "application/json",
     addRandomSuffix: false,
     allowOverwrite: true,
+    token: getBlobToken(),
   });
 }
 
 async function blobPutBuffer(pathname: string, buf: Buffer, contentType: string) {
   const { put } = await import("@vercel/blob");
-  await put(pathname, buf, { access: "public", contentType, addRandomSuffix: false, allowOverwrite: true });
+  await put(pathname, buf, {
+    access: "public",
+    contentType,
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    token: getBlobToken(),
+  });
 }
 
 /**
@@ -87,7 +96,7 @@ async function blobPutBuffer(pathname: string, buf: Buffer, contentType: string)
  */
 async function blobUrlFor(pathname: string): Promise<string | undefined> {
   const { list } = await import("@vercel/blob");
-  const { blobs } = await list({ prefix: pathname, limit: 1 });
+  const { blobs } = await list({ prefix: pathname, limit: 1, token: getBlobToken() });
   const hit = blobs.find((b) => b.pathname === pathname);
   return hit?.url;
 }
@@ -130,7 +139,7 @@ async function blobFetchBuffer(pathname: string): Promise<Buffer | undefined> {
 // ---------------------------------------------------------------------
 
 export async function findJobByHash(hash: string): Promise<JobMeta | undefined> {
-  if (useBlob) {
+  if (useBlob()) {
     const id = await blobFetchJson<{ jobId: string }>(`hashes/${hash}.json`);
     if (!id) return undefined;
     return getJob(id.jobId);
@@ -142,7 +151,7 @@ export async function findJobByHash(hash: string): Promise<JobMeta | undefined> 
 }
 
 export async function getPreviewBuffer(id: string): Promise<Buffer | undefined> {
-  if (useBlob) {
+  if (useBlob()) {
     const p = await blobPaths(id);
     return blobFetchBuffer(p.preview);
   }
@@ -166,7 +175,7 @@ export async function createJob(input: {
     createdAt: Date.now(),
   };
 
-  if (useBlob) {
+  if (useBlob()) {
     const p = await blobPaths(id);
     await Promise.all([
       blobPutBuffer(p.clean, input.cleanBuffer, "image/jpeg"),
@@ -185,7 +194,7 @@ export async function createJob(input: {
 }
 
 export async function getJob(id: string): Promise<JobMeta | undefined> {
-  if (useBlob) {
+  if (useBlob()) {
     const p = await blobPaths(id);
     return blobFetchJson<JobMeta>(p.meta);
   }
@@ -194,7 +203,7 @@ export async function getJob(id: string): Promise<JobMeta | undefined> {
 }
 
 export async function markPaid(id: string): Promise<void> {
-  if (useBlob) {
+  if (useBlob()) {
     const p = await blobPaths(id);
     const meta = await blobFetchJson<JobMeta>(p.meta);
     if (!meta) return;
@@ -210,7 +219,7 @@ export async function issueDownloadToken(id: string): Promise<{ token: string; e
   const token = crypto.randomBytes(24).toString("hex");
   const exp = Date.now() + DOWNLOAD_TOKEN_TTL_MS;
 
-  if (useBlob) {
+  if (useBlob()) {
     const p = await blobPaths(id);
     const meta = await blobFetchJson<JobMeta>(p.meta);
     if (!meta || !meta.paid) return undefined;
@@ -227,7 +236,7 @@ export async function issueDownloadToken(id: string): Promise<{ token: string; e
 
 /** Verifies + immediately consumes the token so it can't be replayed; returns the clean image bytes. */
 export async function consumeDownloadToken(id: string, token: string): Promise<Buffer | undefined> {
-  if (useBlob) {
+  if (useBlob()) {
     const p = await blobPaths(id);
     const meta = await blobFetchJson<JobMeta>(p.meta);
     if (!meta || !meta.paid || !meta.downloadToken) return undefined;
