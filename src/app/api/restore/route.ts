@@ -5,6 +5,7 @@ import { createJob, findJobByHash, getPreviewBuffer, hashContent } from "@/lib/j
 import { checkAndConsumeFreeUpload } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // real-esrgan inference can take longer than the 10s default
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -52,15 +53,23 @@ export async function POST(req: NextRequest) {
   }
 
   const engine = getRestoreEngine();
-  const { buffer: cleanBuffer } = await engine.restore(input);
-  const previewBuffer = await makeWatermarkedPreview(cleanBuffer);
+  try {
+    const { buffer: cleanBuffer } = await engine.restore(input);
+    const previewBuffer = await makeWatermarkedPreview(cleanBuffer);
 
-  const job = await createJob({ contentHash, engine: engine.name, cleanBuffer, previewBuffer });
+    const job = await createJob({ contentHash, engine: engine.name, cleanBuffer, previewBuffer });
 
-  return NextResponse.json({
-    jobId: job.id,
-    engine: engine.name,
-    remainingFreePreviews: remaining,
-    previewDataUrl: `data:image/jpeg;base64,${previewBuffer.toString("base64")}`,
-  });
+    return NextResponse.json({
+      jobId: job.id,
+      engine: engine.name,
+      remainingFreePreviews: remaining,
+      previewDataUrl: `data:image/jpeg;base64,${previewBuffer.toString("base64")}`,
+    });
+  } catch (err) {
+    console.error("restore failed", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Restoration failed, please try again." },
+      { status: 502 }
+    );
+  }
 }
