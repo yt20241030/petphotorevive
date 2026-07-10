@@ -19,19 +19,36 @@ export const fluxRestoreEngine: RestoreEngine = {
     const Replicate = (await import("replicate")).default;
     const replicate = new Replicate({ auth: token });
 
+    // Low-credit Replicate accounts are throttled to burst=1 request, so
+    // the second call of this two-model chain gets 429'd routinely — and
+    // without a retry the Flux spend is wasted on a failed request.
+    const runWithRetry = async (model: `${string}/${string}`, input: object) => {
+      for (let attempt = 1; ; attempt++) {
+        try {
+          return await replicate.run(model, { input });
+        } catch (err) {
+          if (String(err).includes("429") && attempt < 6) {
+            await new Promise((r) => setTimeout(r, 12000));
+            continue;
+          }
+          throw err;
+        }
+      }
+    };
+
     const dataUrl = `data:image/jpeg;base64,${input.toString("base64")}`;
 
-    const restored = await replicate.run("flux-kontext-apps/restore-image", {
-      input: { input_image: dataUrl, seed: 7, output_format: "jpg" },
+    const restored = await runWithRetry("flux-kontext-apps/restore-image", {
+      input_image: dataUrl,
+      seed: 7,
+      output_format: "jpg",
     });
     const restoredBuf = await outputToBuffer(restored);
 
-    const upscaled = await replicate.run("nightmareai/real-esrgan", {
-      input: {
-        image: `data:image/jpeg;base64,${restoredBuf.toString("base64")}`,
-        scale: 2,
-        face_enhance: false,
-      },
+    const upscaled = await runWithRetry("nightmareai/real-esrgan", {
+      image: `data:image/jpeg;base64,${restoredBuf.toString("base64")}`,
+      scale: 2,
+      face_enhance: false,
     });
     const upscaledBuf = await outputToBuffer(upscaled);
 
