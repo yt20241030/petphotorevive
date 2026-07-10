@@ -20,13 +20,16 @@ function watermarkSvg(width: number, height: number) {
 
 /** Downscaled + watermarked preview — the only version ever sent before payment. */
 export async function makeWatermarkedPreview(input: Buffer): Promise<Buffer> {
-  const base = sharp(input).rotate().resize({ width: PREVIEW_MAX_WIDTH, withoutEnlargement: true });
-  const meta = await base.metadata();
-  const width = meta.width ?? PREVIEW_MAX_WIDTH;
-  const height = meta.height ?? PREVIEW_MAX_WIDTH;
+  // Resolve the resize first so we know its *actual* output dimensions —
+  // metadata() on a pipeline with a queued resize is not reliably the
+  // post-resize size, and compositing a mis-sized watermark buffer throws.
+  const { data: resized, info } = await sharp(input)
+    .rotate()
+    .resize({ width: PREVIEW_MAX_WIDTH, withoutEnlargement: true })
+    .toBuffer({ resolveWithObject: true });
 
-  return base
-    .composite([{ input: Buffer.from(watermarkSvg(width, height)), top: 0, left: 0 }])
+  return sharp(resized)
+    .composite([{ input: Buffer.from(watermarkSvg(info.width, info.height)), top: 0, left: 0 }])
     .jpeg({ quality: 82 })
     .toBuffer();
 }
