@@ -8,7 +8,7 @@
 - 存储从"进程内存"改为 **Vercel Blob**(`src/lib/jobStore.ts` 按 `BLOB_READ_WRITE_TOKEN` 是否存在自动切换后端):创始人已在 Vercel Storage 建了 Blob 数据库并连接项目、重新部署。
 - 落地页(`src/app/page.tsx`)是真正的产品页:hero + 示例前后对比滑块 + 上传控件 + 水印预览 + 定价下载按钮 + 页脚 "by hipopo",桌面/手机都测过。
 - 完整流水线:上传校验(类型/大小)→ 修复(双引擎自动切换)→ 水印+降分辨率预览(`src/lib/watermark.ts`)→ 内容 hash 去重缓存 → 付款门(demo 模式,`DODO_API_KEY` 一贴自动切真 Dodo)→ 一次性/15分钟短时效下载链接。
-- 成本闸:IP 每日限 5 次免费预览(`src/lib/rateLimit.ts`,仍是进程内存态,见"已知的坑")、同一张图内容 hash 命中直接复用结果不重新跑引擎。
+- 成本闸(三层,互不替代):①IP 每日限 5 次免费预览(`src/lib/rateLimit.ts`,进程内存态,见"已知的坑");②同一张图内容 hash 命中直接复用结果不重新跑引擎;③**全站每日修图总闸**(`src/lib/dailyCap.ts`,默认 500 次/天,环境变量 `DAILY_RESTORE_LIMIT` 可调):按 UTC 日期计数,存 Vercel Blob(键随日期滚动,零点自动"清零",无需清理任务),**在调用 Replicate 之前检查**,超限一律 503 拦截("Our studio is at capacity today"),一分钱不多花;成功调用后才 +1;缓存命中不消耗额度。已本地验证:限 2 次时第 3 张新图被拦、重复图仍正常返回。
 - Dodo webhook 路由先占位:没有 `DODO_WEBHOOK_SECRET` 时直接拒绝一切请求,不会被伪造请求放行下载。
 - 本地 `npx next build` + `npx eslint .` + `npx tsc --noEmit` 全绿。
 
@@ -41,3 +41,4 @@
 
 - 本机 Node 全局 npm cache / AppData 目录被重定向到非 C 盘,涉及跨盘 rename 的操作可能触发 `EXDEV`,遇到时优先用环境变量绕开。
 - `rateLimit.ts` 的每日免费次数计数器是进程内存态,冷启动会重置,不是安全问题(不影响付费下载的正确性),只影响"防刷"精确度,后续可挪到 Blob/KV。
+- `dailyCap.ts` 的 Blob 计数是"读了再写",不是原子操作:两个请求同时踩线时可能各自读到 499 双双放行,最坏超出上限几次调用——对花费闸来说可接受,已写在代码注释里;若要求严格原子需换 Vercel KV/Redis 的 INCR。

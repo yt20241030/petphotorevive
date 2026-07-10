@@ -3,6 +3,7 @@ import { getRestoreEngine } from "@/lib/engine";
 import { makeWatermarkedPreview } from "@/lib/watermark";
 import { createJob, findJobByHash, getPreviewBuffer, hashContent } from "@/lib/jobStore";
 import { checkAndConsumeFreeUpload } from "@/lib/rateLimit";
+import { hasDailyCapacity, recordRestoreCall } from "@/lib/dailyCap";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // real-esrgan inference can take longer than the 10s default
@@ -53,8 +54,21 @@ export async function POST(req: NextRequest) {
   }
 
   const engine = getRestoreEngine();
+
+  // Site-wide daily spend cap — checked BEFORE the engine runs so an
+  // over-limit day never spends another cent on Replicate. Separate layer
+  // from the per-IP free-preview limit above; both apply. Cache hits
+  // (handled earlier) bypass this on purpose — they cost nothing.
+  if (!(await hasDailyCapacity())) {
+    return NextResponse.json(
+      { error: "Our studio is at capacity today — please come back tomorrow." },
+      { status: 503 }
+    );
+  }
+
   try {
     const { buffer: cleanBuffer } = await engine.restore(input);
+    await recordRestoreCall();
     const previewBuffer = await makeWatermarkedPreview(cleanBuffer);
 
     const job = await createJob({ contentHash, engine: engine.name, cleanBuffer, previewBuffer });
