@@ -18,16 +18,16 @@ export const replicateRealesrganEngine: RestoreEngine = {
 
     const dataUrl = `data:image/jpeg;base64,${input.toString("base64")}`;
 
-    const output = await replicate.run(
-      "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7",
-      {
-        input: {
-          image: dataUrl,
-          scale: 2,
-          face_enhance: false,
-        },
-      }
-    );
+    // Unpinned "owner/model" form (no ":version" hash) — Replicate resolves
+    // it to that model's current latest version server-side. Avoids baking
+    // in a version hash from memory that can go stale/invalid over time.
+    const output = await replicate.run("nightmareai/real-esrgan", {
+      input: {
+        image: dataUrl,
+        scale: 2,
+        face_enhance: false,
+      },
+    });
 
     const url = Array.isArray(output) ? output[0] : (output as unknown as string);
     const res = await fetch(url as string);
