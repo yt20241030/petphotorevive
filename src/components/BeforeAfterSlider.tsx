@@ -7,17 +7,19 @@ export function BeforeAfterSlider({
   afterSrc,
   beforeLabel = "Before",
   afterLabel = "After",
+  aspectClass = "aspect-square",
 }: {
   beforeSrc: string;
   afterSrc: string;
   beforeLabel?: string;
   afterLabel?: string;
+  aspectClass?: string;
 }) {
   const [pos, setPos] = useState(50);
 
   return (
     <div className="relative w-full select-none overflow-hidden rounded-2xl border border-amber-200 shadow-sm">
-      <div className="relative aspect-square w-full bg-amber-100">
+      <div className={`relative ${aspectClass} w-full bg-amber-100`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={afterSrc} alt={afterLabel} className="absolute inset-0 h-full w-full object-cover" draggable={false} />
         <div

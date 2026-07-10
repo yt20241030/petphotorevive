@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PetPhotoRevive — Restore your pet's old photos",
   description:
-    "Upload an old, blurry photo of your pet and get a crisp, high-resolution version back in seconds.",
+    "Upload an old photo of your pet and see a free restored preview. Pay only if you love it.",
 };
 
 export default function RootLayout({

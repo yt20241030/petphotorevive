@@ -2,7 +2,7 @@
 // upscaler. Reads REPLICATE_API_TOKEN from .env.local (never committed).
 // Usage: node scripts/model-comparison.mjs <input-image>
 // Outputs per-model results + a labeled side-by-side grid into 测试对比/.
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, existsSync, mkdirSync } from "node:fs";
 import sharp from "sharp";
 import Replicate from "replicate";
 

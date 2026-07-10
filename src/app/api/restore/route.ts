@@ -4,9 +4,10 @@ import { makeWatermarkedPreview } from "@/lib/watermark";
 import { createJob, findJobByHash, getPreviewBuffer, hashContent } from "@/lib/jobStore";
 import { checkAndConsumeFreeUpload } from "@/lib/rateLimit";
 import { hasDailyCapacity, recordRestoreCall } from "@/lib/dailyCap";
+import { analyzePhoto } from "@/lib/photoCheck";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // real-esrgan inference can take longer than the 10s default
+export const maxDuration = 300; // flux-restore + esrgan chain, plus possible cold starts
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -66,6 +67,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Advisory quality flags for the gentle notice; never blocks the upload.
+  const flags = await analyzePhoto(input).catch(() => ({ heavilyBlurred: false, overexposed: false }));
+
   try {
     const { buffer: cleanBuffer } = await engine.restore(input);
     await recordRestoreCall();
@@ -77,6 +81,7 @@ export async function POST(req: NextRequest) {
       jobId: job.id,
       engine: engine.name,
       remainingFreePreviews: remaining,
+      photoFlags: flags,
       previewDataUrl: `data:image/jpeg;base64,${previewBuffer.toString("base64")}`,
     });
   } catch (err) {

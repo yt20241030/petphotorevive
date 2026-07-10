@@ -1,6 +1,15 @@
 # 进度记录 — 7号 照片修复站 MVP
 
-## 当前状态(2026-07-10)
+## 当前状态(2026-07-10 晚,产品页改版+引擎切换工单完成)
+
+- **主引擎已切换**(创始人拍板):`flux-restore` 二段管线 = `flux-kontext-apps/restore-image`(修复/上色/去损,固定 seed=7 保证同图重跑结果一致)→ `nightmareai/real-esrgan` x2 放大到高清(实测输出 2208x1888),合计约 $0.044/张。本地 E2E 实测 29 秒跑通全链(修复→水印预览→demo付款→高清下载→缓存命中不重复扣费)。
+- **备用引擎保留**:`RESTORE_ENGINE=realesrgan` 环境变量可一键切回 Real-ESRGAN(已升级为横评胜出的 x4+锐化 配置),做"仅增强不重绘"档;无 token 时仍退回 sharp-basic。成本闸/水印/验签放行逻辑全部未动。
+- **定价 $6 → $9**(`src/lib/brand.ts` PRICE_USD,整数显示,全站同步)。
+- **产品页全面改版**:新副标题(free preview / pay only if you love it)、hero 对比滑块换成真实 Flux 修复案例(1900s 明信片长毛猫)、三步流程区+“You only pay if you love the result.”、三组案例(褪色/黑白/破损,全部公有领域老照片+我们自己的 Flux 输出)、"Works best on / Limited results on" 两列适配清单、上传框下加打消顾虑文案、诚实小字("Our AI reconstructs fine details — always preview before you pay.")、定价区($9 含高清/无水印/可保存)。全站无 "100%/perfectly restore" 类承诺、无桌宠字样。手机 375px 宽实测无横向溢出。
+- **品牌埋线+邮箱收集**(付费成功态):小字 "hipopo — keeping the bond alive." + 邮箱输入框,`/api/subscribe` 存 Vercel Blob(`emails/<邮箱哈希>.json`,同邮箱重复提交自动覆盖不堆重复)。
+- **智能提示(工单第五条)已实现**:`src/lib/photoCheck.ts` 本地启发式(拉普拉斯方差测糊 + 亮度/过曝比例),仅提示不拦截,阈值放保守(老照片颗粒不会误报);上传响应带 `photoFlags`,前端预览页温和提示。
+
+## 旧状态(2026-07-10 上午)
 
 - **等待期建站工单(A-I)已上线,且真引擎(Replicate Real-ESRGAN)已接通并真机验证通过。**
 - `REPLICATE_API_TOKEN` 已由创始人贴进 Vercel 环境变量 → 引擎自动从 `sharp-basic` 切到 `replicate-realesrgan`,用创始人提供的一张真实老猫照片实测:上传 → 真实 AI 修复 → 水印预览 → 付款(demo)→ 下载清晰大图 → 链接二次使用返回 403,全链路在线上跑通。

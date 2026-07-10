@@ -9,7 +9,7 @@
 
 ## 技术栈
 
-Next.js(App Router)+ TypeScript + Tailwind,部署 Vercel,图片存储 Cloudflare R2(后期接入),支付 Dodo Payments,修复模型 Replicate `nightmareai/real-esrgan`(`face_enhance=false`)。
+Next.js(App Router)+ TypeScript + Tailwind,部署 Vercel,图片/订单状态存 Vercel Blob(Cloudflare R2 后期接入),支付 Dodo Payments。修复引擎(2026-07-10 创始人拍板):主引擎 `flux-kontext-apps/restore-image` + `nightmareai/real-esrgan` x2 放大(合计约$0.044/张);备用 Real-ESRGAN x4+锐化(`RESTORE_ENGINE=realesrgan` 切换,仅增强不重绘);`face_enhance` 永远 false(GFPGAN 非商用依赖)。
 
 ## 怎么启动
 

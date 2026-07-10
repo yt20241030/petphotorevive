@@ -1,4 +1,4 @@
-export type RestoreEngineName = "sharp-basic" | "replicate-realesrgan";
+export type RestoreEngineName = "sharp-basic" | "replicate-realesrgan" | "flux-restore";
 
 export interface RestoreResult {
   engine: RestoreEngineName;

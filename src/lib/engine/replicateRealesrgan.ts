@@ -1,9 +1,12 @@
+import sharp from "sharp";
 import type { RestoreEngine, RestoreResult } from "./types";
 
 /**
- * Real engine — Replicate nightmareai/real-esrgan, face_enhance=false (BSD,
- * commercial-safe; face_enhance pulls in non-commercial GFPGAN/DFDNet, never
- * enable it), scale=2. Only runs when REPLICATE_API_TOKEN is set.
+ * Backup "enhance-only, no re-rendering" engine — Replicate
+ * nightmareai/real-esrgan, face_enhance=false (BSD, commercial-safe;
+ * face_enhance pulls in non-commercial GFPGAN/DFDNet, never enable it).
+ * x4 + light sharpen per the 2026-07-10 shootout (x2 was too conservative).
+ * Activated via RESTORE_ENGINE=realesrgan.
  */
 export const replicateRealesrganEngine: RestoreEngine = {
   name: "replicate-realesrgan",
@@ -24,14 +27,15 @@ export const replicateRealesrganEngine: RestoreEngine = {
     const output = await replicate.run("nightmareai/real-esrgan", {
       input: {
         image: dataUrl,
-        scale: 2,
+        scale: 4,
         face_enhance: false,
       },
     });
 
     const url = Array.isArray(output) ? output[0] : (output as unknown as string);
     const res = await fetch(url as string);
-    const buffer = Buffer.from(await res.arrayBuffer());
+    const raw = Buffer.from(await res.arrayBuffer());
+    const buffer = await sharp(raw).sharpen({ sigma: 1.0 }).jpeg({ quality: 95 }).toBuffer();
 
     return { engine: "replicate-realesrgan", buffer };
   },

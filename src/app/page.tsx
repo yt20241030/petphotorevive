@@ -2,36 +2,128 @@ import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 import { RestoreStudio } from "@/components/RestoreStudio";
 import { BRAND_NAME, PARENT_BRAND, PRICE_USD } from "@/lib/brand";
 
+const STEPS = [
+  { n: "1", title: "Upload", text: "Add an old photo of your pet — faded, scratched or grainy." },
+  { n: "2", title: "Free preview", text: "See the restored photo side by side with the original." },
+  { n: "3", title: `Download HD ($${PRICE_USD})`, text: "Love it? Unlock the clean high-resolution version." },
+];
+
+const WORKS_BEST = [
+  "Faded or yellowed old photos",
+  "Scratched or damaged prints",
+  "Low-resolution or grainy shots",
+  "Black & white photos",
+];
+
+const LIMITED = [
+  "Heavily blurred / out-of-focus shots",
+  "Overexposed photos where details are washed out",
+];
+
+const CASES = [
+  { key: "faded", label: "Faded & yellowed", before: "/demo/case-faded-before.jpg", after: "/demo/case-faded-after.jpg" },
+  { key: "bw", label: "Black & white", before: "/demo/case-bw-before.jpg", after: "/demo/case-bw-after.jpg" },
+  { key: "damaged", label: "Scratched & damaged", before: "/demo/case-damaged-before.jpg", after: "/demo/case-damaged-after.jpg" },
+];
+
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-amber-50">
-      <header className="mx-auto w-full max-w-3xl px-6 pt-8 text-center">
-        <span className="text-sm font-semibold tracking-wide text-amber-800">{BRAND_NAME}</span>
+      <header className="mx-auto w-full max-w-4xl px-6 pt-10 text-center">
+        <span className="text-sm font-semibold tracking-widest text-amber-800">{BRAND_NAME}</span>
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center gap-14 px-6 py-10">
-        <section className="flex flex-col items-center gap-4 text-center">
-          <h1 className="max-w-lg text-4xl font-semibold leading-tight text-zinc-800 sm:text-5xl">
+      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-20 px-6 py-12">
+        {/* Hero */}
+        <section className="flex flex-col items-center gap-5 text-center">
+          <h1 className="max-w-2xl text-4xl font-semibold leading-tight text-zinc-800 sm:text-5xl">
             Bring your pet&apos;s old photos back to life
           </h1>
-          <p className="max-w-md text-lg text-zinc-600">
-            Upload a faded, blurry photo of your beloved pet. Our AI restores it to a clear,
-            high-resolution keepsake in seconds.
+          <p className="max-w-xl text-lg text-zinc-600">
+            AI-powered restoration. See your free preview — pay only if you love it.
+          </p>
+          <div className="mt-4 w-full max-w-2xl">
+            <BeforeAfterSlider
+              beforeSrc="/demo/hero-before.jpg"
+              afterSrc="/demo/hero-after.jpg"
+              aspectClass="aspect-[3/2]"
+            />
+            <p className="mt-2 text-xs text-zinc-400">
+              Real restoration of a 1900s postcard photograph. Drag to compare.
+            </p>
+          </div>
+        </section>
+
+        {/* Upload + suitability */}
+        <section className="grid items-start gap-8 md:grid-cols-[3fr_2fr]">
+          <RestoreStudio />
+          <aside className="rounded-2xl bg-white/70 p-6">
+            <h2 className="text-sm font-semibold text-zinc-700">Works best on:</h2>
+            <ul className="mt-3 space-y-2">
+              {WORKS_BEST.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-sm text-zinc-600">
+                  <span aria-hidden className="mt-0.5 text-emerald-600">✓</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <h2 className="mt-6 text-sm font-semibold text-zinc-700">Limited results on:</h2>
+            <ul className="mt-3 space-y-2">
+              {LIMITED.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-sm text-zinc-500">
+                  <span aria-hidden className="mt-0.5 text-zinc-400">✗</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </aside>
+        </section>
+
+        {/* Three steps */}
+        <section className="flex flex-col items-center gap-8">
+          <div className="grid w-full gap-6 sm:grid-cols-3">
+            {STEPS.map((step) => (
+              <div key={step.n} className="rounded-2xl bg-white/70 p-6 text-center">
+                <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-amber-800 text-sm font-semibold text-white">
+                  {step.n}
+                </span>
+                <h3 className="mt-3 font-semibold text-zinc-700">{step.title}</h3>
+                <p className="mt-1 text-sm text-zinc-500">{step.text}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-base font-medium text-amber-900">You only pay if you love the result.</p>
+        </section>
+
+        {/* Cases */}
+        <section className="flex flex-col items-center gap-8">
+          <h2 className="text-2xl font-semibold text-zinc-800">Every kind of old photo</h2>
+          <div className="grid w-full gap-6 sm:grid-cols-3">
+            {CASES.map((c) => (
+              <figure key={c.key} className="flex flex-col gap-2">
+                <BeforeAfterSlider beforeSrc={c.before} afterSrc={c.after} />
+                <figcaption className="text-center text-sm text-zinc-500">{c.label}</figcaption>
+              </figure>
+            ))}
+          </div>
+          <p className="text-xs text-zinc-400">
+            Our AI reconstructs fine details — always preview before you pay.
           </p>
         </section>
 
-        <section className="w-full max-w-md">
-          <BeforeAfterSlider beforeSrc="/demo/before.jpg" afterSrc="/demo/after.jpg" />
-          <p className="mt-2 text-center text-xs text-zinc-400">Example restoration</p>
-        </section>
-
-        <section className="flex w-full flex-col items-center gap-3">
-          <RestoreStudio />
-        </section>
-
-        <section className="flex flex-col items-center gap-1 text-center text-sm text-zinc-500">
-          <p>Free preview, watermarked. Full high-resolution download is ${PRICE_USD}.</p>
-          <p>We only restore pet photos — no faces, no people.</p>
+        {/* Pricing */}
+        <section className="flex justify-center">
+          <div className="w-full max-w-md rounded-2xl bg-white/80 p-8 text-center">
+            <p className="text-sm font-semibold uppercase tracking-wide text-amber-800">Simple pricing</p>
+            <p className="mt-2 text-5xl font-semibold text-zinc-800">${PRICE_USD}</p>
+            <p className="text-sm text-zinc-500">per photo</p>
+            <ul className="mx-auto mt-5 max-w-xs space-y-2 text-left text-sm text-zinc-600">
+              <li className="flex items-start gap-2"><span aria-hidden className="text-emerald-600">✓</span> High-resolution restored photo</li>
+              <li className="flex items-start gap-2"><span aria-hidden className="text-emerald-600">✓</span> No watermark</li>
+              <li className="flex items-start gap-2"><span aria-hidden className="text-emerald-600">✓</span> Yours to download and keep</li>
+            </ul>
+            <p className="mt-5 text-xs text-zinc-400">Free watermarked preview first — no account needed.</p>
+          </div>
         </section>
       </main>
 
