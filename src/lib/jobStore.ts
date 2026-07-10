@@ -80,11 +80,32 @@ async function blobPutBuffer(pathname: string, buf: Buffer, contentType: string)
   await put(pathname, buf, { access: "public", contentType, addRandomSuffix: false, allowOverwrite: true });
 }
 
+/**
+ * head() only accepts a full blob URL, not a pathname (calling it with a
+ * pathname throws, which read as "job not found" in production). Resolve
+ * pathname -> URL via list({prefix}) and require an exact pathname match.
+ */
+async function blobUrlFor(pathname: string): Promise<string | undefined> {
+  const { list } = await import("@vercel/blob");
+  const { blobs } = await list({ prefix: pathname, limit: 1 });
+  const hit = blobs.find((b) => b.pathname === pathname);
+  return hit?.url;
+}
+
+/**
+ * Unique query param busts the Blob CDN cache — meta.json is overwritten
+ * in place (markPaid, token issue/consume), and a cached stale read there
+ * would mean "paid" flips back to "unpaid" or a consumed token looks fresh.
+ */
+function bust(url: string): string {
+  return `${url}${url.includes("?") ? "&" : "?"}nc=${crypto.randomUUID()}`;
+}
+
 async function blobFetchJson<T>(pathname: string): Promise<T | undefined> {
-  const { head } = await import("@vercel/blob");
   try {
-    const info = await head(pathname);
-    const res = await fetch(info.url, { cache: "no-store" });
+    const url = await blobUrlFor(pathname);
+    if (!url) return undefined;
+    const res = await fetch(bust(url), { cache: "no-store" });
     if (!res.ok) return undefined;
     return (await res.json()) as T;
   } catch {
@@ -93,10 +114,10 @@ async function blobFetchJson<T>(pathname: string): Promise<T | undefined> {
 }
 
 async function blobFetchBuffer(pathname: string): Promise<Buffer | undefined> {
-  const { head } = await import("@vercel/blob");
   try {
-    const info = await head(pathname);
-    const res = await fetch(info.url, { cache: "no-store" });
+    const url = await blobUrlFor(pathname);
+    if (!url) return undefined;
+    const res = await fetch(bust(url), { cache: "no-store" });
     if (!res.ok) return undefined;
     return Buffer.from(await res.arrayBuffer());
   } catch {
