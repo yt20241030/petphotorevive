@@ -11,7 +11,7 @@ export async function GET() {
   return NextResponse.json({
     // Bump on watermark/cache-shape changes; lets deploy scripts poll for
     // "the new build is actually serving" instead of guessing with sleeps.
-    buildTag: "wm-v2",
+    buildTag: "wm-v3",
     blobConfigured: Boolean(getBlobTokenKey()),
     blobTokenEnvName: getBlobTokenKey() ?? null,
     replicateConfigured: Boolean(process.env.REPLICATE_API_TOKEN),

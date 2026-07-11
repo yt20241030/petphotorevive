@@ -130,7 +130,7 @@ async function blobFetchBuffer(pathname: string): Promise<Buffer | undefined> {
 
 export async function findJobByHash(hash: string): Promise<JobMeta | undefined> {
   if (isBlobBacked()) {
-    const id = await blobFetchJson<{ jobId: string }>(`hashes/v2/${hash}.json`);
+    const id = await blobFetchJson<{ jobId: string }>(`hashes/v3/${hash}.json`);
     if (!id) return undefined;
     return getJob(id.jobId);
   }
@@ -171,7 +171,7 @@ export async function createJob(input: {
       blobPutBuffer(p.clean, input.cleanBuffer, "image/jpeg"),
       blobPutBuffer(p.preview, input.previewBuffer, "image/jpeg"),
       blobPutJson(p.meta, meta),
-      blobPutJson(`hashes/v2/${input.contentHash}.json`, { jobId: id }),
+      blobPutJson(`hashes/v3/${input.contentHash}.json`, { jobId: id }),
     ]);
     return meta;
   }
