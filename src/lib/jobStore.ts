@@ -67,10 +67,18 @@ async function blobPaths(id: string) {
   };
 }
 
+/**
+ * The store was created as PRIVATE (founder's choice — and the right one:
+ * paid HD files must never be reachable by URL without going through our
+ * pay-gated routes). All access therefore goes through the SDK with
+ * access:"private"; reads use get() with useCache:false, which both
+ * accepts pathnames directly and guarantees fresh reads of in-place
+ * overwritten blobs (meta.json paid flips, consumed download tokens).
+ */
 async function blobPutJson(pathname: string, data: unknown) {
   const { put } = await import("@vercel/blob");
   await put(pathname, JSON.stringify(data), {
-    access: "public",
+    access: "private",
     contentType: "application/json",
     addRandomSuffix: false,
     allowOverwrite: true,
@@ -81,7 +89,7 @@ async function blobPutJson(pathname: string, data: unknown) {
 async function blobPutBuffer(pathname: string, buf: Buffer, contentType: string) {
   const { put } = await import("@vercel/blob");
   await put(pathname, buf, {
-    access: "public",
+    access: "private",
     contentType,
     addRandomSuffix: false,
     allowOverwrite: true,
@@ -89,34 +97,13 @@ async function blobPutBuffer(pathname: string, buf: Buffer, contentType: string)
   });
 }
 
-/**
- * head() only accepts a full blob URL, not a pathname (calling it with a
- * pathname throws, which read as "job not found" in production). Resolve
- * pathname -> URL via list({prefix}) and require an exact pathname match.
- */
-async function blobUrlFor(pathname: string): Promise<string | undefined> {
-  const { list } = await import("@vercel/blob");
-  const { blobs } = await list({ prefix: pathname, limit: 1, token: getBlobToken() });
-  const hit = blobs.find((b) => b.pathname === pathname);
-  return hit?.url;
-}
-
-/**
- * Unique query param busts the Blob CDN cache — meta.json is overwritten
- * in place (markPaid, token issue/consume), and a cached stale read there
- * would mean "paid" flips back to "unpaid" or a consumed token looks fresh.
- */
-function bust(url: string): string {
-  return `${url}${url.includes("?") ? "&" : "?"}nc=${crypto.randomUUID()}`;
-}
-
 async function blobFetchJson<T>(pathname: string): Promise<T | undefined> {
   try {
-    const url = await blobUrlFor(pathname);
-    if (!url) return undefined;
-    const res = await fetch(bust(url), { cache: "no-store" });
-    if (!res.ok) return undefined;
-    return (await res.json()) as T;
+    const { get } = await import("@vercel/blob");
+    const res = await get(pathname, { access: "private", useCache: false, token: getBlobToken() });
+    if (!res?.stream) return undefined;
+    const text = await new Response(res.stream).text();
+    return JSON.parse(text) as T;
   } catch {
     return undefined;
   }
@@ -124,11 +111,10 @@ async function blobFetchJson<T>(pathname: string): Promise<T | undefined> {
 
 async function blobFetchBuffer(pathname: string): Promise<Buffer | undefined> {
   try {
-    const url = await blobUrlFor(pathname);
-    if (!url) return undefined;
-    const res = await fetch(bust(url), { cache: "no-store" });
-    if (!res.ok) return undefined;
-    return Buffer.from(await res.arrayBuffer());
+    const { get } = await import("@vercel/blob");
+    const res = await get(pathname, { access: "private", useCache: false, token: getBlobToken() });
+    if (!res?.stream) return undefined;
+    return Buffer.from(await new Response(res.stream).arrayBuffer());
   } catch {
     return undefined;
   }

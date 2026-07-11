@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     // itself instead of piling up duplicates.
     const key = crypto.createHash("sha256").update(cleaned).digest("hex").slice(0, 32);
     await put(`emails/${key}.json`, JSON.stringify(record), {
-      access: "public",
+      access: "private",
       contentType: "application/json",
       addRandomSuffix: false,
       allowOverwrite: true,

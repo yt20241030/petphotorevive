@@ -28,19 +28,13 @@ function blobPath(date: string): string {
 }
 
 async function readBlobCount(date: string): Promise<number> {
-  const { list } = await import("@vercel/blob");
+  const { get } = await import("@vercel/blob");
   try {
-    // head() only accepts full blob URLs — resolve the pathname via
-    // list({prefix}) instead, and bust the CDN cache with a unique query
-    // (this counter is overwritten in place on every increment).
-    const pathname = blobPath(date);
-    const { blobs } = await list({ prefix: pathname, limit: 1, token: getBlobToken() });
-    const hit = blobs.find((b) => b.pathname === pathname);
-    if (!hit) return 0;
-    const crypto = await import("crypto");
-    const res = await fetch(`${hit.url}?nc=${crypto.randomUUID()}`, { cache: "no-store" });
-    if (!res.ok) return 0;
-    const data = (await res.json()) as { count?: number };
+    // Private store: get() takes the pathname directly; useCache:false
+    // guarantees a fresh read of this in-place overwritten counter.
+    const res = await get(blobPath(date), { access: "private", useCache: false, token: getBlobToken() });
+    if (!res?.stream) return 0;
+    const data = (await new Response(res.stream).json()) as { count?: number };
     return data.count ?? 0;
   } catch {
     return 0;
@@ -50,7 +44,7 @@ async function readBlobCount(date: string): Promise<number> {
 async function writeBlobCount(date: string, count: number): Promise<void> {
   const { put } = await import("@vercel/blob");
   await put(blobPath(date), JSON.stringify({ count }), {
-    access: "public",
+    access: "private",
     contentType: "application/json",
     addRandomSuffix: false,
     allowOverwrite: true,
