@@ -6,7 +6,7 @@ const PREVIEW_MAX_WIDTH = 512;
 
 /**
  * Tiled watermark covering the whole preview — the free preview must be
- * clearly marked or a screenshot replaces the $9 purchase.
+ * clearly marked or a screenshot replaces the purchase.
  *
  * The mark is a pre-rendered PNG tile (see watermarkTile.ts), NOT SVG
  * text: Vercel's serverless runtime has no system fonts, so SVG <text>
@@ -14,13 +14,24 @@ const PREVIEW_MAX_WIDTH = 512;
  * shipped with an invisible watermark while looking fine locally.
  */
 export async function makeWatermarkedPreview(input: Buffer): Promise<Buffer> {
-  const resized = await sharp(input)
+  const { data: resized, info } = await sharp(input)
     .rotate()
     .resize({ width: PREVIEW_MAX_WIDTH, withoutEnlargement: true })
-    .toBuffer();
+    .toBuffer({ resolveWithObject: true });
+
+  // sharp's tiled composite requires the tile to be no larger than the
+  // image — shrink it to fit small previews (the 560px tile vs the 512px
+  // preview crashed generation in production).
+  let tile = Buffer.from(WATERMARK_TILE_B64, "base64");
+  const tileMeta = await sharp(tile).metadata();
+  const maxW = Math.min(tileMeta.width ?? 1, Math.floor(info.width * 0.9));
+  const maxH = Math.min(tileMeta.height ?? 1, Math.floor(info.height * 0.9));
+  if ((tileMeta.width ?? 0) > maxW || (tileMeta.height ?? 0) > maxH) {
+    tile = await sharp(tile).resize({ width: maxW, height: maxH, fit: "inside" }).png().toBuffer();
+  }
 
   return sharp(resized)
-    .composite([{ input: Buffer.from(WATERMARK_TILE_B64, "base64"), tile: true, blend: "over" }])
+    .composite([{ input: tile, tile: true, blend: "over" }])
     .jpeg({ quality: 82 })
     .toBuffer();
 }
