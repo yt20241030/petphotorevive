@@ -1,62 +1,53 @@
-import sharp from "sharp";
-
 export interface FaceGateResult {
   ok: boolean;
-  reason?: "no-face" | "face-too-small" | "face-blurred";
-}
-
-interface DinoDetection {
-  label: string;
-  confidence: number;
-  bbox: number[]; // [x1, y1, x2, y2]
+  reason?: "no-face" | "check-failed";
 }
 
 /**
  * 🔴 Safety gate (highest priority): if the pet's face isn't clearly
- * visible, the generator WILL invent a different pet — proven in the
- * art-portrait experiment (rear-view photo → fabricated face). So: detect
- * a pet face with Grounding DINO (Apache-2.0, Replicate-hosted); no clear
- * face → refuse to generate, charge nothing.
+ * visible, the generator WILL invent a different pet — proven twice in
+ * live experiments (rear-view photo → fully fabricated face).
+ *
+ * Implementation: moondream2 VQA (Apache-2.0, Replicate-hosted, ~$0.001).
+ * Grounding DINO was tried first and rejected: it "detects" dog faces and
+ * even eyes on a rear-view photo (0.4 confidence false positives) — box
+ * detection can't distinguish "head from behind" from "face visible".
+ * The VQA question discriminated correctly on all three test photos
+ * (rear→No, face→Yes, blurry-but-visible→Yes).
  *
  * Runs BEFORE any quota/credit is consumed and before the expensive
- * generation call. Cost ~$0.002/check.
+ * generation call. Fails CLOSED on "No", fails OPEN only on infra errors
+ * (surfaced as check-failed for the route to decide).
  */
+const QUESTION =
+  "Look at this photo. Can you clearly see the pet animal's face with its eyes visible? Answer with only yes or no.";
+
 export async function checkPetFace(input: Buffer): Promise<FaceGateResult> {
   const token = process.env.REPLICATE_API_TOKEN;
   if (!token) {
-    // Local dev without a token (sharp-basic placeholder mode): let it pass
-    // so the UI flow is testable; production always has the token.
+    // Local dev without a token (placeholder engine mode): pass so the UI
+    // flow is testable; production always has the token.
     return { ok: true };
   }
 
   const Replicate = (await import("replicate")).default;
   const replicate = new Replicate({ auth: token });
 
-  const meta = await sharp(input).metadata();
-  const imgW = meta.width ?? 1;
-  const imgH = meta.height ?? 1;
-
-  const dataUrl = `data:image/jpeg;base64,${input.toString("base64")}`;
-
-  // Community model: predictions endpoint needs a pinned version.
+  // Community model — the predictions endpoint needs a pinned version.
   const model = await (
-    await fetch("https://api.replicate.com/v1/models/adirik/grounding-dino", {
+    await fetch("https://api.replicate.com/v1/models/lucataco/moondream2", {
       headers: { Authorization: `Bearer ${token}` },
     })
   ).json();
   const version = (model as { latest_version: { id: string } }).latest_version.id;
 
+  const dataUrl = `data:image/jpeg;base64,${input.toString("base64")}`;
+
   let output: unknown;
   for (let attempt = 1; ; attempt++) {
     try {
-      output = await replicate.run(`adirik/grounding-dino:${version}`, {
-        input: {
-          image: dataUrl,
-          query: "dog face, cat face, pet animal face",
-          box_threshold: 0.3,
-          text_threshold: 0.25,
-          show_visualisation: false,
-        },
+      output = await replicate.run(`lucataco/moondream2:${version}`, {
+        input: { image: dataUrl, prompt: QUESTION },
       });
       break;
     } catch (err) {
@@ -68,48 +59,11 @@ export async function checkPetFace(input: Buffer): Promise<FaceGateResult> {
     }
   }
 
-  const detections = ((output as { detections?: DinoDetection[] })?.detections ?? []) as DinoDetection[];
-  const faces = detections
-    .filter((d) => d.confidence >= 0.35)
-    .map((d) => {
-      const [x1, y1, x2, y2] = d.bbox;
-      return { x1, y1, x2, y2, area: Math.max(0, x2 - x1) * Math.max(0, y2 - y1) };
-    })
-    .sort((a, b) => b.area - a.area);
-
-  if (faces.length === 0) return { ok: false, reason: "no-face" };
-
-  const face = faces[0];
-  // Face must occupy a meaningful part of the frame (>= ~2% of pixels) or
-  // there isn't enough detail to preserve likeness from.
-  if (face.area < imgW * imgH * 0.02) return { ok: false, reason: "face-too-small" };
-
-  // Blur check on the face crop itself: variance of the Laplacian.
-  const left = Math.max(0, Math.round(face.x1));
-  const top = Math.max(0, Math.round(face.y1));
-  const w = Math.min(imgW - left, Math.round(face.x2 - face.x1));
-  const h = Math.min(imgH - top, Math.round(face.y2 - face.y1));
-  if (w > 8 && h > 8) {
-    const { data, info } = await sharp(input)
-      .extract({ left, top, width: w, height: h })
-      .greyscale()
-      .resize({ width: 200, withoutEnlargement: true })
-      .raw()
-      .toBuffer({ resolveWithObject: true });
-    let sum = 0, sumSq = 0, n = 0;
-    for (let y = 1; y < info.height - 1; y++) {
-      for (let x = 1; x < info.width - 1; x++) {
-        const i = y * info.width + x;
-        const lap = 4 * data[i] - data[i - 1] - data[i + 1] - data[i - info.width] - data[i + info.width];
-        sum += lap; sumSq += lap * lap; n++;
-      }
-    }
-    const m = sum / n;
-    const variance = sumSq / n - m * m;
-    if (variance < 25) return { ok: false, reason: "face-blurred" };
-  }
-
-  return { ok: true };
+  const text = (Array.isArray(output) ? output.join("") : String(output)).trim().toLowerCase();
+  if (text.startsWith("yes")) return { ok: true };
+  if (text.startsWith("no")) return { ok: false, reason: "no-face" };
+  // Unexpected answer shape — treat as not-verifiable rather than guessing.
+  return { ok: false, reason: "check-failed" };
 }
 
 export const FACE_GATE_MESSAGE =
