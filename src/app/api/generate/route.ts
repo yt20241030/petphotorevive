@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     const job = await createJob({
       contentHash: `${anonId}-${Date.now()}`, // stylized output is per-request; no dedup cache
-      engine: `kontext-style:${style.id}`,
+      engine: `nano-style:${style.id}`,
       cleanBuffer: hdBuffer,
       previewBuffer,
     });

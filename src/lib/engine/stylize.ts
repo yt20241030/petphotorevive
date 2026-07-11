@@ -1,10 +1,14 @@
 import sharp from "sharp";
 
 /**
- * Portrait generation engine: Flux Kontext Pro (official commercial API)
- * applies the style instruction, then Real-ESRGAN x2 (face_enhance=false,
- * BSD) lifts the ~1MP Kontext output to HD for the paid download.
- * ~$0.044 per portrait.
+ * Portrait generation engine — Google Nano Banana (founder decision
+ * 2026-07-11 after three rounds of shootouts). The deciding evidence: it
+ * was the only engine with zero coat-color fabrication across BOTH test
+ * pets (black-white dog 11/11 AND solid-white cat 3/3); Seedream 4.5 won
+ * on style flair but invented ginger patches on the white cat, and
+ * Kontext Pro/Max failed color fidelity systematically. Then Real-ESRGAN
+ * x2 (face_enhance=false, BSD) lifts the output to HD for the paid
+ * download. ~$0.045 per portrait all-in.
  */
 export async function stylizePhoto(input: Buffer, prompt: string): Promise<Buffer> {
   const token = process.env.REPLICATE_API_TOKEN;
@@ -22,7 +26,10 @@ export async function stylizePhoto(input: Buffer, prompt: string): Promise<Buffe
       try {
         return await replicate.run(model, { input });
       } catch (err) {
-        if (String(err).includes("429") && attempt < 6) {
+        const s = String(err);
+        // 429: low-credit rate tier; fetch failed: transient network blips
+        // seen repeatedly when downloading outputs.
+        if ((s.includes("429") || s.includes("fetch failed")) && attempt < 6) {
           await new Promise((r) => setTimeout(r, 12000));
           continue;
         }
@@ -32,8 +39,8 @@ export async function stylizePhoto(input: Buffer, prompt: string): Promise<Buffe
   };
 
   const dataUrl = `data:image/jpeg;base64,${input.toString("base64")}`;
-  const styled = await runWithRetry("black-forest-labs/flux-kontext-pro", {
-    input_image: dataUrl,
+  const styled = await runWithRetry("google/nano-banana", {
+    image_input: [dataUrl],
     prompt,
     output_format: "jpg",
   });
