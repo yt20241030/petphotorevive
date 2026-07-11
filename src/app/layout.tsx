@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PetPhotoRevive — Restore your pet's old photos",
+  title: "PetPhotoRevive — AI pet portraits in twelve styles",
   description:
-    "Upload an old photo of your pet and see a free restored preview. Pay only if you love it.",
+    "Upload one photo of your pet, pick a style, and see a free watermarked preview before you spend anything. We recreate from what we can see — we never guess.",
 };
 
 export default function RootLayout({

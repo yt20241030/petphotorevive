@@ -1,7 +1,8 @@
 import sharp from "sharp";
 import { WATERMARK_TILE_B64 } from "./watermarkTile";
 
-const PREVIEW_MAX_WIDTH = 800;
+// 512px per the credit-model spec: free tier gets a 512px watermarked preview.
+const PREVIEW_MAX_WIDTH = 512;
 
 /**
  * Tiled watermark covering the whole preview — the free preview must be

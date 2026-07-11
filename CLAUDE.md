@@ -1,15 +1,22 @@
-# 7号 照片修复站 MVP
+# 7号 宠物艺术肖像工作室(原照片修复站,2026-07-11 转向)
 
-> 独立收款站,不属于桌宠生态的代币/角色护照体系。唯一目标:7 天内上线收到第一笔钱。
-> 新会话先读:本文件 → [照片修复站-MVP-建站指令.md](照片修复站-MVP-建站指令.md)(完整需求)→ [PROGRESS.md](PROGRESS.md)(当前进度)→ `git log --oneline -20`。
+> 独立收款站,不属于桌宠生态的代币/角色护照体系。
+> 新会话先读:本文件 → [PROGRESS.md](PROGRESS.md)(当前进度)→ `git log --oneline -20`。产品逻辑源自 1号美图(12风格宠物肖像),引擎按 License 红线换成 Replicate/Flux Kontext。
 
 ## 项目是什么
 
-上传老宠物照片 → Replicate Real-ESRGAN 修复清晰 → 带水印预览 → Dodo Payments 付费 → 下载高清无水印。详见建站指令文档,不要偏离其范围(不做 App/用户系统/上色/划痕修复等)。
+上传宠物照片 → 安全闸门(检测不到清晰宠物脸=拒绝生成,"We never guess")→ 选 12 风格之一 → Flux Kontext 生成 → 免费 3 次 512px 水印预览 → 积分解锁高清($2.99/5、$4.99/20、$9.99/50,1积分=1张高清)。
+
+## 红线
+
+- 引擎只用 Replicate 可商用模型(Flux Kontext Pro / Real-ESRGAN face_enhance=false / Grounding DINO);严禁豆包等无商用授权引擎。
+- 全站禁出现桌宠/3D模型/AI视频/宠物歌曲/游戏等未来产品字样或"敬请期待"。
+- 风格显示名与产出不得含受商标保护的角色/标志(superhero 提示词已封死 logo)。
+- 诚实文案:"We recreate from what we can see. We never guess."
 
 ## 技术栈
 
-Next.js(App Router)+ TypeScript + Tailwind,部署 Vercel,图片/订单状态存 Vercel Blob(Cloudflare R2 后期接入),支付 Dodo Payments。修复引擎(2026-07-10 创始人拍板):主引擎 `flux-kontext-apps/restore-image` + `nightmareai/real-esrgan` x2 放大(合计约$0.044/张);备用 Real-ESRGAN x4+锐化(`RESTORE_ENGINE=realesrgan` 切换,仅增强不重绘);`face_enhance` 永远 false(GFPGAN 非商用依赖)。
+Next.js(App Router)+ TypeScript + Tailwind,Vercel 部署,Vercel Blob 私有存储(订单/用户积分/邮箱),Dodo Payments(待接入,期间 demo 加分)。生成链:Grounding DINO 面部闸门(~$0.002)→ flux-kontext-pro(~$0.04)→ real-esrgan x2(~$0.004)。
 
 ## 怎么启动
 
