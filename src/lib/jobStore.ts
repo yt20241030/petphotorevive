@@ -88,7 +88,11 @@ async function blobPutJson(pathname: string, data: unknown) {
 
 async function blobPutBuffer(pathname: string, buf: Buffer, contentType: string) {
   const { put } = await import("@vercel/blob");
-  await put(pathname, buf, {
+  // sharp Buffers in Vercel's runtime can be views over a SharedArrayBuffer,
+  // which the SDK's body validation rejects — copy into a plain ArrayBuffer.
+  const plain = new ArrayBuffer(buf.byteLength);
+  new Uint8Array(plain).set(buf);
+  await put(pathname, plain, {
     access: "private",
     contentType,
     addRandomSuffix: false,
