@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PetPhotoRevive — AI pet portraits in twelve styles",
+  title: "Pet Art Portrait Studio — AI pet portraits in eleven styles",
   description:
     "Upload one photo of your pet, pick a style, and see a free watermarked preview before you spend anything. We recreate from what we can see — we never guess.",
 };

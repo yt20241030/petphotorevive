@@ -37,9 +37,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // No Dodo key yet: the site cannot take real payments regardless, so the
-  // pipeline runs in demo mode — credit immediately, no charge. This branch
-  // dies the moment DODO_API_KEY is configured.
-  const updated = await addCredits(anonId, chosen.credits);
-  return NextResponse.json({ demo: true, credits: updated.credits, priceUsd: chosen.usd });
+  // 创始人拍板(2026-07-11):未支付绝不发积分。Dodo 接入前,购买按钮
+  // 一律如实告知"支付尚未开通"。DEMO_CREDITS=1 环境变量是内部联调的
+  // 唯一例外(生产不设)。
+  if (process.env.DEMO_CREDITS === "1") {
+    const updated = await addCredits(anonId, chosen.credits);
+    return NextResponse.json({ demo: true, credits: updated.credits, priceUsd: chosen.usd });
+  }
+
+  return NextResponse.json(
+    { error: "Checkout isn't open yet — we're finishing payment setup. Your free tries still work." },
+    { status: 503 }
+  );
 }
