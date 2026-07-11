@@ -8,18 +8,24 @@ export function BeforeAfterSlider({
   beforeLabel = "Before",
   afterLabel = "After",
   aspectClass = "aspect-square",
+  aspectRatio,
 }: {
   beforeSrc: string;
   afterSrc: string;
   beforeLabel?: string;
   afterLabel?: string;
   aspectClass?: string;
+  /** e.g. "4 / 5" — matches the container to the photo so nothing is cropped. Overrides aspectClass. */
+  aspectRatio?: string;
 }) {
   const [pos, setPos] = useState(50);
 
   return (
     <div className="relative w-full select-none overflow-hidden rounded-2xl border border-amber-200 shadow-sm">
-      <div className={`relative ${aspectClass} w-full bg-amber-100`}>
+      <div
+        className={`relative ${aspectRatio ? "" : aspectClass} w-full bg-amber-100`}
+        style={aspectRatio ? { aspectRatio } : undefined}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={afterSrc} alt={afterLabel} className="absolute inset-0 h-full w-full object-cover" draggable={false} />
         <div

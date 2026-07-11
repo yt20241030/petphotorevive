@@ -1,23 +1,11 @@
 import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
-import { RestoreStudio } from "@/components/RestoreStudio";
+import { HeroStudio } from "@/components/HeroStudio";
 import { BRAND_NAME, PARENT_BRAND, PRICE_USD } from "@/lib/brand";
 
 const STEPS = [
   { n: "1", title: "Upload", text: "Add an old photo of your pet — faded, scratched or grainy." },
   { n: "2", title: "Free preview", text: "See the restored photo side by side with the original." },
   { n: "3", title: `Download HD ($${PRICE_USD})`, text: "Love it? Unlock the clean high-resolution version." },
-];
-
-const WORKS_BEST = [
-  "Faded or yellowed old photos",
-  "Scratched or damaged prints",
-  "Low-resolution or grainy shots",
-  "Black & white photos",
-];
-
-const LIMITED = [
-  "Heavily blurred / out-of-focus shots",
-  "Overexposed photos where details are washed out",
 ];
 
 const CASES = [
@@ -34,50 +22,7 @@ export default function Home() {
       </header>
 
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-20 px-6 py-12">
-        {/* Hero */}
-        <section className="flex flex-col items-center gap-5 text-center">
-          <h1 className="max-w-2xl text-4xl font-semibold leading-tight text-zinc-800 sm:text-5xl">
-            Bring your pet&apos;s old photos back to life
-          </h1>
-          <p className="max-w-xl text-lg text-zinc-600">
-            AI-powered restoration. See your free preview — pay only if you love it.
-          </p>
-          <div className="mt-4 w-full max-w-2xl">
-            <BeforeAfterSlider
-              beforeSrc="/demo/hero-before.jpg"
-              afterSrc="/demo/hero-after.jpg"
-              aspectClass="aspect-[3/2]"
-            />
-            <p className="mt-2 text-xs text-zinc-400">
-              Real restoration of a 1900s postcard photograph. Drag to compare.
-            </p>
-          </div>
-        </section>
-
-        {/* Upload + suitability */}
-        <section className="grid items-start gap-8 md:grid-cols-[3fr_2fr]">
-          <RestoreStudio />
-          <aside className="rounded-2xl bg-white/70 p-6">
-            <h2 className="text-sm font-semibold text-zinc-700">Works best on:</h2>
-            <ul className="mt-3 space-y-2">
-              {WORKS_BEST.map((item) => (
-                <li key={item} className="flex items-start gap-2 text-sm text-zinc-600">
-                  <span aria-hidden className="mt-0.5 text-emerald-600">✓</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <h2 className="mt-6 text-sm font-semibold text-zinc-700">Limited results on:</h2>
-            <ul className="mt-3 space-y-2">
-              {LIMITED.map((item) => (
-                <li key={item} className="flex items-start gap-2 text-sm text-zinc-500">
-                  <span aria-hidden className="mt-0.5 text-zinc-400">✗</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </aside>
-        </section>
+        <HeroStudio />
 
         {/* Three steps */}
         <section className="flex flex-col items-center gap-8">
