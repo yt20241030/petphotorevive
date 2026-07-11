@@ -1,6 +1,15 @@
 # 进度记录 — 7号 照片修复站 MVP
 
-## 当前状态(2026-07-10 晚,产品页改版+引擎切换工单完成)
+## 当前状态(2026-07-11,线上全链终验通过 ✅)
+
+- **六环节线上终验全部通过**(私有 Blob 存储生效后):①Flux 真引擎修复(engine=flux-restore,智能提示正常)→ ②未付款请求下载被 "Payment required" 挡住(同时证明订单跨实例可见)→ ③demo 付款 200 → ④高清无水印下载 2208x1888(672KB)→ ⑤同一下载链接重放被 403 拦截 → ⑥邮箱收集写入 200。
+- **Blob 存储排障全过程(三层问题,依次解决,详见 git log)**:
+  1. 生产环境没有凭证变量 → 创始人手动加 `BLOB_READ_WRITE_TOKEN`(Production+Preview,Sensitive);期间加了 `/api/health` 诊断接口(只报配置名,不报值)+ 代码兼容任意 `*_READ_WRITE_TOKEN` 前缀名。
+  2. 存储是 **Private 模式**而代码按 public 读写 → 全部改 `access:"private"`,读取弃用 list+公网 fetch 改 `get(pathname,{useCache:false})`——私有模式对付费墙更安全(高清件无公开URL,只能过验签路由),useCache:false 根治覆盖写后读旧值隐患。
+  3. Vercel 运行时 sharp 输出的 Buffer 底层可能是 SharedArrayBuffer,SDK 上传拒收 → 上传前复制为普通 ArrayBuffer。
+- 教训入档:**"Vercel 后台显示已连接"≠"运行时真的读到了"**,以后接任何存储/密钥类服务,第一步先在 `/api/health` 里验运行时实际状态,再往下走。
+
+## 旧状态(2026-07-10 晚,产品页改版+引擎切换工单完成)
 
 - **主引擎已切换**(创始人拍板):`flux-restore` 二段管线 = `flux-kontext-apps/restore-image`(修复/上色/去损,固定 seed=7 保证同图重跑结果一致)→ `nightmareai/real-esrgan` x2 放大到高清(实测输出 2208x1888),合计约 $0.044/张。本地 E2E 实测 29 秒跑通全链(修复→水印预览→demo付款→高清下载→缓存命中不重复扣费)。
 - **备用引擎保留**:`RESTORE_ENGINE=realesrgan` 环境变量可一键切回 Real-ESRGAN(已升级为横评胜出的 x4+锐化 配置),做"仅增强不重绘"档;无 token 时仍退回 sharp-basic。成本闸/水印/验签放行逻辑全部未动。
