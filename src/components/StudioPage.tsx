@@ -302,6 +302,34 @@ export function StudioPage() {
                 {STYLES.map((style, index) => (
                   <StyleCard key={style.id} style={style} index={index} onPick={() => pickStyle(style)} />
                 ))}
+                {/* Fills the 12th grid slot (superhero pulled): invitation
+                    card that jumps back to the upload box. */}
+                <button
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    fileInputRef.current?.click();
+                  }}
+                  className="group rotate-[0.6deg] rounded-[1.6rem] bg-white/55 p-3 text-left ring-1 ring-amber-900/8 transition duration-300 hover:rotate-0 hover:bg-white hover:shadow-[0_30px_90px_rgba(120,72,38,0.16)]"
+                >
+                  <div className="flex aspect-square flex-col items-center justify-center gap-3 rounded-[1.1rem] border-2 border-dashed border-amber-900/25 bg-[#fffaf3]">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-stone-950 text-xl font-black text-white transition group-hover:bg-amber-900">
+                      +
+                    </span>
+                    <span className="px-4 text-center text-[0.62rem] font-black uppercase leading-relaxed tracking-[0.18em] text-amber-900/60">
+                      Your masterpiece
+                      <br />
+                      goes here
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-2 pb-1 pt-3">
+                    <h3 className="text-sm font-black leading-tight tracking-[-0.02em] text-stone-500 sm:text-base">
+                      Start with a photo
+                    </h3>
+                    <span className="text-lg font-black text-amber-900/40 transition group-hover:translate-x-1 group-hover:text-amber-900">
+                      →
+                    </span>
+                  </div>
+                </button>
               </div>
             </div>
           </section>
