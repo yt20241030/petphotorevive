@@ -13,7 +13,7 @@ const DAILY_RESTORE_LIMIT = Number(process.env.DAILY_RESTORE_LIMIT ?? 500);
  * boundary could each see 499 and both proceed — worst case the cap
  * overshoots by a handful of calls, which is acceptable for a spend guard.
  */
-const useBlob = () => Boolean(getBlobToken());
+const isBlobBacked = () => Boolean(getBlobToken());
 
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
@@ -61,7 +61,7 @@ async function writeBlobCount(date: string, count: number): Promise<void> {
 /** Call BEFORE invoking Replicate — true means the day's budget still has room. */
 export async function hasDailyCapacity(): Promise<boolean> {
   const date = todayUtc();
-  if (useBlob()) {
+  if (isBlobBacked()) {
     return (await readBlobCount(date)) < DAILY_RESTORE_LIMIT;
   }
   const mem = globalStore.__petphotorevive_dailyCap;
@@ -72,7 +72,7 @@ export async function hasDailyCapacity(): Promise<boolean> {
 /** Call AFTER a successful Replicate restoration to consume one unit. */
 export async function recordRestoreCall(): Promise<void> {
   const date = todayUtc();
-  if (useBlob()) {
+  if (isBlobBacked()) {
     const count = await readBlobCount(date);
     await writeBlobCount(date, count + 1);
     return;

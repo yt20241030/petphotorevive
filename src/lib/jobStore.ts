@@ -32,7 +32,7 @@ export function hashContent(buffer: Buffer): string {
  * needs to know which backend is active. Evaluated per call, not at module
  * load, so env changes apply without a rebuild.
  */
-const useBlob = () => Boolean(getBlobToken());
+const isBlobBacked = () => Boolean(getBlobToken());
 
 // ---------------------------------------------------------------------
 // In-memory backend (local dev fallback)
@@ -139,7 +139,7 @@ async function blobFetchBuffer(pathname: string): Promise<Buffer | undefined> {
 // ---------------------------------------------------------------------
 
 export async function findJobByHash(hash: string): Promise<JobMeta | undefined> {
-  if (useBlob()) {
+  if (isBlobBacked()) {
     const id = await blobFetchJson<{ jobId: string }>(`hashes/${hash}.json`);
     if (!id) return undefined;
     return getJob(id.jobId);
@@ -151,7 +151,7 @@ export async function findJobByHash(hash: string): Promise<JobMeta | undefined> 
 }
 
 export async function getPreviewBuffer(id: string): Promise<Buffer | undefined> {
-  if (useBlob()) {
+  if (isBlobBacked()) {
     const p = await blobPaths(id);
     return blobFetchBuffer(p.preview);
   }
@@ -175,7 +175,7 @@ export async function createJob(input: {
     createdAt: Date.now(),
   };
 
-  if (useBlob()) {
+  if (isBlobBacked()) {
     const p = await blobPaths(id);
     await Promise.all([
       blobPutBuffer(p.clean, input.cleanBuffer, "image/jpeg"),
@@ -194,7 +194,7 @@ export async function createJob(input: {
 }
 
 export async function getJob(id: string): Promise<JobMeta | undefined> {
-  if (useBlob()) {
+  if (isBlobBacked()) {
     const p = await blobPaths(id);
     return blobFetchJson<JobMeta>(p.meta);
   }
@@ -203,7 +203,7 @@ export async function getJob(id: string): Promise<JobMeta | undefined> {
 }
 
 export async function markPaid(id: string): Promise<void> {
-  if (useBlob()) {
+  if (isBlobBacked()) {
     const p = await blobPaths(id);
     const meta = await blobFetchJson<JobMeta>(p.meta);
     if (!meta) return;
@@ -219,7 +219,7 @@ export async function issueDownloadToken(id: string): Promise<{ token: string; e
   const token = crypto.randomBytes(24).toString("hex");
   const exp = Date.now() + DOWNLOAD_TOKEN_TTL_MS;
 
-  if (useBlob()) {
+  if (isBlobBacked()) {
     const p = await blobPaths(id);
     const meta = await blobFetchJson<JobMeta>(p.meta);
     if (!meta || !meta.paid) return undefined;
@@ -236,7 +236,7 @@ export async function issueDownloadToken(id: string): Promise<{ token: string; e
 
 /** Verifies + immediately consumes the token so it can't be replayed; returns the clean image bytes. */
 export async function consumeDownloadToken(id: string, token: string): Promise<Buffer | undefined> {
-  if (useBlob()) {
+  if (isBlobBacked()) {
     const p = await blobPaths(id);
     const meta = await blobFetchJson<JobMeta>(p.meta);
     if (!meta || !meta.paid || !meta.downloadToken) return undefined;
