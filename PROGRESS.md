@@ -8,6 +8,7 @@
   2. 存储是 **Private 模式**而代码按 public 读写 → 全部改 `access:"private"`,读取弃用 list+公网 fetch 改 `get(pathname,{useCache:false})`——私有模式对付费墙更安全(高清件无公开URL,只能过验签路由),useCache:false 根治覆盖写后读旧值隐患。
   3. Vercel 运行时 sharp 输出的 Buffer 底层可能是 SharedArrayBuffer,SDK 上传拒收 → 上传前复制为普通 ArrayBuffer。
 - 教训入档:**"Vercel 后台显示已连接"≠"运行时真的读到了"**,以后接任何存储/密钥类服务,第一步先在 `/api/health` 里验运行时实际状态,再往下走。
+- **Replicate 429 归因修正(2026-07-11 创始人查账单后核实)**:7/10 横评期间的批量 429 是 Replicate 低额度档限流(报错原文"less than $5.0 in credit"),与创始人 7/10 的 $10 充值存在时间差;充值到账后档位已解除(终验中 Flux→ESRGAN 背靠背调用一遍过)。**不需要也不要再为此充值**;引擎里的 429 自动重试(12秒×5次)保留作兜底。
 
 ## 旧状态(2026-07-10 晚,产品页改版+引擎切换工单完成)
 
