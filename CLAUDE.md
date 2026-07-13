@@ -9,14 +9,14 @@
 
 ## 红线
 
-- 引擎只用 Replicate 可商用模型(Flux Kontext Pro / Real-ESRGAN face_enhance=false / Grounding DINO);严禁豆包等无商用授权引擎。
+- 引擎只用 Replicate 可商用模型(主引擎 google/nano-banana=Gemini 2.5 Flash Image,商用授权已核查闭环见 docs/License核查-NanoBanana-2026-0713.md;Real-ESRGAN face_enhance=false;moondream2 面部闸门);严禁豆包等无商用授权引擎。
 - 全站禁出现桌宠/3D模型/AI视频/宠物歌曲/游戏等未来产品字样或"敬请期待"。
 - 风格显示名与产出不得含受商标保护的角色/标志(superhero 提示词已封死 logo)。
 - 诚实文案:"We recreate from what we can see. We never guess."
 
 ## 技术栈
 
-Next.js(App Router)+ TypeScript + Tailwind,Vercel 部署,Vercel Blob 私有存储(订单/用户积分/邮箱),Dodo Payments(待接入,期间 demo 加分)。生成链:Grounding DINO 面部闸门(~$0.002)→ flux-kontext-pro(~$0.04)→ real-esrgan x2(~$0.004)。
+Next.js(App Router)+ TypeScript + Tailwind,Vercel 部署,Vercel Blob 私有存储(订单/用户积分/邮箱),Dodo Payments(待接入,期间 demo 加分)。生成链:moondream2 面部闸门(~$0.001)→ google/nano-banana(~$0.039)→ real-esrgan x2(~$0.004)。
 
 ## 怎么启动
 
