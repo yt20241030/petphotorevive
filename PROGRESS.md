@@ -8,7 +8,7 @@
 
 **正在执行的工单(创始人 3 项,做完一项交一项)**:
 - ✅ **第一项 License 核查**——已闭环:nano-banana=Gemini 2.5 Flash Image GA版,经 Replicate 官方渠道**可商用可销售、输出归客户**。档案 [docs/License核查-NanoBanana-2026-0713.md](docs/License核查-NanoBanana-2026-0713.md)。
-- ✅ **第二项 免费重试机制**——**已完成并本地真机 6 场景实测通过**(用白猫+博美正脸/背影真实照走全链,含真引擎+面部闸门)。做法见下方专章。核心:按 `anonId+图片sha256hash` 记生成次数,**每次"消耗"(免费额度或积分)后送 N 次同图免费重试(可同风格可换风格)**,周期性刷新;**N=2(创始人拍板,`FREE_RETRIES_PER_PORTRAIT`)**;文案 "Not quite right? Retry for free — we want it to look exactly like them." 已上结果页。**注**:本地已跑通,但按铁律线上部署后仍建议复跑一遍确认(Blob 后端路径本地是内存兜底,线上走真 Blob)。
+- ✅ **第二项 免费重试机制**——**已完成并本地真机 6 场景实测通过**(用白猫+博美正脸/背影真实照走全链,含真引擎+面部闸门)。做法见下方专章。核心:按 `anonId+图片sha256hash` 记生成次数,**每次"消耗"(免费额度或积分)后送 N 次同图免费重试(可同风格可换风格)**,周期性刷新;**N=2(创始人拍板,`FREE_RETRIES_PER_PORTRAIT`)**;文案 "Not quite right? Retry for free — we want it to look exactly like them." 已上结果页。**已线上部署(studio-v6-retry)+真 Blob 后端复跑通过**:3 次同图生成只扣 1 免费额度(freeLeft 持久化为 2),wasFreeRetry/retriesLeft 跨 serverless 实例正确。
 - ⏳ **第三项 SEO 博客**(下一步,尚未动工):开 /blog 极简板块;首篇英文《Best AI Pet Portrait Generators in 2026 — We Tested Them With the Same Photo》,诚实横评 Pet Canvas/Pawcaso/PetBooth/Lensa/NightCafe+我们(能测的测,不能测的引用公开信息注明,🔴不贬低不编造);差异化卖点如实写(全套$19.99 vs 竞品单张$19.99、免费预览、免费重试、We never guess);基础 SEO(title/meta/结构化标题/图片alt/速度);再列后续 5 个选题清单给创始人。
 
 **关键工程决策与坑(避免重蹈)**:
@@ -51,7 +51,9 @@
 | 5 | 博美**背影** | — | 面部闸门 422 no-face | 1 不变 | — |
 | 6 | 博美**正脸** | watercolor | false 独立计费(换图=不同hash) | 1→0 | 2 |
 
-证明:首次消耗、N=2 次重试免费、可换风格(#2)、用尽后重新计费(#4)、按图 hash 绑定换宠物独立计费+独立重试批(#6)、被闸门拒/网络超时不扣费(#5 及一次 moondream2 connect-timeout 均 freeLeft 不减)。`next build`+eslint+tsc 全绿。**线上部署后建议复跑一遍**(本地是内存兜底,线上走真 Blob 的 `retries/<anonId>-<hash>.json`;Replicate 余额 <$5 会 429,复跑前充值)。
+证明:首次消耗、N=2 次重试免费、可换风格(#2)、用尽后重新计费(#4)、按图 hash 绑定换宠物独立计费+独立重试批(#6)、被闸门拒/网络超时不扣费(#5 及一次 moondream2 connect-timeout 均 freeLeft 不减)。`next build`+eslint+tsc 全绿。
+
+**线上复跑通过(2026-07-13,production `studio-v6-retry`,真 Vercel Blob 后端)**:新 anonId 白猫连跑 3 次(watercolor→pop-art→watercolor)= 1 次计费(wasFreeRetry:false,freeLeft 3→2)+ 2 次免费重试(wasFreeRetry:true,freeLeft 保持 2,retriesLeft 2→1→0);`/api/me` 复核 freeLeft=2。证明 `retries/<anonId>-<hash>.json` 的 Blob 读改写在多 serverless 实例下计数正确。
 
 ## 当前状态(2026-07-11 晚,项目转向完成并上线,七步全链验收通过 ✅)
 
