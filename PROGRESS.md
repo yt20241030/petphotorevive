@@ -1,5 +1,29 @@
 # 进度记录 — 7号 宠物艺术肖像工作室(原照片修复站)
 
+## 🔖 交接卡(2026-07-13,新管家先读这一段)
+
+**产品**:宠物艺术肖像工作室。上传宠物照 → moondream2 面部闸门(看不清脸=422拒绝,不扣额度)→ 选 11 风格 → **google/nano-banana** 生成 → real-esrgan x2 放大 → 免费 3 次 512px 水印预览 → 积分解锁高清。线上:https://petphotorevive.vercel.app(域名待改)。
+
+**当前健康状态**:主引擎 nano-banana 已定案并线上终验通过(生成/水印/额度/下载/重放全绿)。`/api/health` 返回 `buildTag: studio-v5-nano-wm`,可用它判断部署是否就绪。
+
+**正在执行的工单(创始人 3 项,做完一项交一项)**:
+- ✅ **第一项 License 核查**——已闭环:nano-banana=Gemini 2.5 Flash Image GA版,经 Replicate 官方渠道**可商用可销售、输出归客户**。档案 [docs/License核查-NanoBanana-2026-0713.md](docs/License核查-NanoBanana-2026-0713.md)。
+- ⏳ **第二项 免费重试机制**(下一步,尚未动工):抄竞品 Pet Canvas 的"预览不满意可免费重试"。要求:重试可重生成同风格或换风格;上限按成本测算给创始人建议数字(创始人倾向 3);计数写进订单系统防刷(同图无限白嫖要挡,建议按 anonId+图片hash 记重试次数);页面文案 "Not quite right? Retry for free — we want it to look exactly like them."。**注意**:现有逻辑是每次生成都消耗免费额度(consumeFreeTry),重试机制要改成"首次消耗、N 次重试不额外消耗"。
+- ⏳ **第三项 SEO 博客**(第二项之后):开 /blog 极简板块;首篇英文《Best AI Pet Portrait Generators in 2026 — We Tested Them With the Same Photo》,诚实横评 Pet Canvas/Pawcaso/PetBooth/Lensa/NightCafe+我们(能测的测,不能测的引用公开信息注明,🔴不贬低不编造);差异化卖点如实写(全套$19.99 vs 竞品单张$19.99、免费预览、免费重试、We never guess);基础 SEO(title/meta/结构化标题/图片alt/速度);再列后续 5 个选题清单给创始人。
+
+**关键工程决策与坑(避免重蹈)**:
+- 存储是 **Vercel Blob 私有模式**,读写都要 `access:"private"` + `get(pathname,{useCache:false})`;凭证解析走 `src/lib/blobToken.ts`(兼容自定义前缀)。head() 只收 URL 不收路径。
+- 水印是**预渲染 PNG 图块**(`src/lib/watermarkTile.ts`),因 Vercel serverless 无字体、SVG文字会空渲染;合成前必须把图块缩到不大于预览(否则 sharp composite 报 "same dimensions or smaller" 崩)。改品牌名要重新生成这个图块。
+- Replicate 余额 <$5 会限速(429),引擎里已有自动重试兜底;建议创始人充值到 $5 以上。
+- 每次改引擎/水印/缓存形状,给 `/api/health` 的 buildTag 升个号,部署轮询靠它。
+- 换引擎必须**跨毛色抽查**(黑白+纯色),单样本会误判(Seedream 就栽在白猫上)。
+
+**待创始人拍板(不阻塞开发)**:①4个色偏风格(油画/圣诞/生日/素描)换 nano 后大概率自愈,建议白猫复测后恢复上架 ②superhero 是否用 nano 重试复活 ③橱窗示例图现用 1号美图 自有卡通猫素材(可商用),是否换成真实宠物实测图(需授权) ④Vercel 改项目名/域名 ⑤git 历史里两张创始人测试狗照要否彻底清洗 ⑥Dodo test key 到手接真支付(demo 分支已封死,现在购买返 503)。
+
+**测试素材(仅本地,已 gitignore)**:`微信图片_*.jpg`(创始人博美正脸+背影)、`6ed78b6a…jpg`(白猫)、`测试对比/`(所有横评样张)。`.env.local` 有 REPLICATE_API_TOKEN(本地实验用,勿提交)。
+
+---
+
 ## 当前状态(2026-07-11 晚,项目转向完成并上线,七步全链验收通过 ✅)
 
 - **产品已从"老照片修复"转向"12风格宠物艺术肖像"**(创始人工单),产品逻辑移植自 1号美图,引擎按 License 红线全换 Replicate 可商用模型。线上验收(studio-v2):①新用户 3 免费额度 ②**背影照被安全闸门 422 拒绝且分文未耗**(原话文案)③正脸照水彩生成 512px 水印预览、免费额度 3→2 ④无积分解锁 402 ⑤demo 买 $2.99 包得 5 积分 ⑥解锁下载高清 1664x2496、同链接重放 403、积分 5→4。
