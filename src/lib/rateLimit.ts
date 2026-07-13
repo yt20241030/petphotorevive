@@ -1,4 +1,7 @@
-const FREE_LIMIT_PER_DAY = Number(process.env.FREE_PREVIEWS_PER_DAY ?? 5);
+// Per-IP daily spend backstop. Every generation (including free retries) counts,
+// so this sits above one user's realistic max — ~3 photos each fully retried
+// (1 charged + 2 free = 3 calls = 9), with headroom. Tunable via env.
+const FREE_LIMIT_PER_DAY = Number(process.env.FREE_PREVIEWS_PER_DAY ?? 15);
 
 const globalStore = globalThis as unknown as {
   __petphotorevive_rate?: Map<string, { date: string; count: number }>;

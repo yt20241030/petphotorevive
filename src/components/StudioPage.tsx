@@ -50,6 +50,9 @@ export function StudioPage() {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [unlocked, setUnlocked] = useState(false);
+  // Free retries left on the CURRENT photo (null = this photo not generated yet).
+  // "Not quite right? Retry for free" — resets whenever a new photo is uploaded.
+  const [retriesLeft, setRetriesLeft] = useState<number | null>(null);
   const [unlocking, setUnlocking] = useState(false);
   const [busyPack, setBusyPack] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -70,6 +73,7 @@ export function StudioPage() {
     setFile(f);
     setPhotoUrl(URL.createObjectURL(f));
     setError(null);
+    setRetriesLeft(null); // new pet = fresh charge, retry batch resets
   }
 
   function pickStyle(style: PortraitStyle) {
@@ -98,6 +102,7 @@ export function StudioPage() {
       setResultUrl(data.previewDataUrl);
       setJobId(data.jobId);
       setUnlocked(Boolean(data.unlocked));
+      if (typeof data.retriesLeft === "number") setRetriesLeft(data.retriesLeft);
       if (typeof data.freeLeft === "number") setFreeLeft(data.freeLeft);
       if (typeof data.credits === "number") setCredits(data.credits);
       setStep({ name: "result", style });
@@ -364,7 +369,9 @@ export function StudioPage() {
               Paint it in {step.style.name}?
             </h2>
             <p className="mt-4 text-sm font-bold leading-7 text-stone-600">
-              {freeLeft && freeLeft > 0
+              {retriesLeft !== null && retriesLeft > 0
+                ? `Free retry — same pet, no free try or credit used. ${retriesLeft} free ${retriesLeft === 1 ? "retry" : "retries"} left.`
+                : freeLeft && freeLeft > 0
                 ? `Uses 1 of your ${freeLeft} free ${freeLeft === 1 ? "try" : "tries"} — you'll get a 512px watermarked preview.`
                 : "Uses 1 credit — full HD, no watermark, yours to keep."}
             </p>
@@ -401,7 +408,18 @@ export function StudioPage() {
             </figcaption>
           </figure>
 
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
+          {/* Free-retry reassurance (Pet Canvas parity): while retries remain on
+              this photo, both "Retry this style" and "Try another style" are free. */}
+          {!unlocked && retriesLeft !== null && retriesLeft > 0 && (
+            <p className="mx-auto mt-8 max-w-md text-sm font-black leading-7 text-amber-900">
+              Not quite right? Retry for free — we want it to look exactly like them.
+              <span className="mt-1 block text-xs font-bold uppercase tracking-[0.16em] text-amber-800/70">
+                {retriesLeft} free {retriesLeft === 1 ? "retry" : "retries"} left on this photo
+              </span>
+            </p>
+          )}
+
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
             <button
               onClick={unlockHd}
               disabled={unlocking}
@@ -409,11 +427,19 @@ export function StudioPage() {
             >
               {unlocking ? "…" : unlocked ? "Download HD" : "Unlock HD — 1 credit"}
             </button>
+            {!unlocked && retriesLeft !== null && retriesLeft > 0 && (
+              <button
+                onClick={() => startGenerate(step.style)}
+                className="rounded-full bg-amber-900 px-8 py-3 text-xs font-black uppercase tracking-[0.18em] text-white shadow-[0_18px_50px_rgba(120,72,38,0.24)] transition hover:-translate-y-0.5 hover:bg-stone-950"
+              >
+                Retry free — same style
+              </button>
+            )}
             <button
               onClick={() => setStep({ name: "gallery" })}
               className="rounded-full bg-white/75 px-6 py-3 text-xs font-black uppercase tracking-[0.18em] text-amber-900 ring-1 ring-amber-900/12 backdrop-blur transition hover:bg-white"
             >
-              Try another style
+              {retriesLeft !== null && retriesLeft > 0 ? "Try another style — free" : "Try another style"}
             </button>
           </div>
           {!unlocked ? (

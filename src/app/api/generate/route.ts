@@ -7,6 +7,7 @@ import { checkAndConsumeFreeUpload } from "@/lib/rateLimit";
 import { hasDailyCapacity, recordRestoreCall } from "@/lib/dailyCap";
 import { checkPetFace, FACE_GATE_MESSAGE } from "@/lib/faceGate";
 import { consumeFreeTry, getUser, isValidAnonId, spendCredits, FREE_TRIES } from "@/lib/userStore";
+import { getPhotoGenerations, recordPhotoGeneration, hashPhoto, retryState } from "@/lib/retryStore";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -63,9 +64,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Free-retry ledger: after a photo has been paid for once (a free try or a
+  // credit), the next FREE_RETRIES generations of that SAME photo are free —
+  // same style or a different one. Keyed by anonId + content hash so it can't
+  // be abused to make free portraits of a different pet.
+  const photoHash = hashPhoto(input);
+  const priorGenerations = await getPhotoGenerations(anonId, photoHash);
+  const { isFreeRetry, retriesLeftAfter } = retryState(priorGenerations);
+
   // Quota: free tier (watermarked 512px preview) or 1 credit (HD unlocked).
+  // Free retries skip the quota check entirely — nothing is consumed.
   const user = await getUser(anonId);
-  const useCredit = user.freeUsed >= FREE_TRIES;
+  const useCredit = !isFreeRetry && user.freeUsed >= FREE_TRIES;
   if (useCredit && user.credits < 1) {
     return NextResponse.json(
       { error: "You've used your free tries. Get a credit pack to keep creating.", needCredits: true },
@@ -85,22 +95,30 @@ export async function POST(req: NextRequest) {
       previewBuffer,
     });
 
-    // Consume quota only AFTER successful generation — a failed run must
-    // never charge the user.
-    let updated;
-    if (useCredit) {
-      updated = await spendCredits(anonId, 1);
-      await markPaid(job.id); // credit generation = HD already unlocked
-    } else {
-      updated = await consumeFreeTry(anonId);
+    // Record the generation against this photo's retry ledger (only ever after
+    // a successful run — a failed generation grants no retries and costs nothing).
+    await recordPhotoGeneration(anonId, photoHash);
+
+    // Consume quota only AFTER successful generation, and only when this is NOT
+    // a free retry — a failed run, or a retry, must never charge the user.
+    let updated = user;
+    if (!isFreeRetry) {
+      if (useCredit) {
+        updated = (await spendCredits(anonId, 1)) ?? user;
+        await markPaid(job.id); // credit generation = HD already unlocked
+      } else {
+        updated = (await consumeFreeTry(anonId)) ?? user;
+      }
     }
 
     return NextResponse.json({
       jobId: job.id,
       styleId: style.id,
       unlocked: useCredit,
-      freeLeft: Math.max(0, FREE_TRIES - (updated?.freeUsed ?? user.freeUsed)),
-      credits: updated?.credits ?? user.credits,
+      wasFreeRetry: isFreeRetry,
+      retriesLeft: Math.max(0, retriesLeftAfter),
+      freeLeft: Math.max(0, FREE_TRIES - updated.freeUsed),
+      credits: updated.credits,
       previewDataUrl: `data:image/jpeg;base64,${previewBuffer.toString("base64")}`,
     });
   } catch (err) {

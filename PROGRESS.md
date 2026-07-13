@@ -4,12 +4,12 @@
 
 **产品**:宠物艺术肖像工作室。上传宠物照 → moondream2 面部闸门(看不清脸=422拒绝,不扣额度)→ 选 11 风格 → **google/nano-banana** 生成 → real-esrgan x2 放大 → 免费 3 次 512px 水印预览 → 积分解锁高清。线上:https://petphotorevive.vercel.app(域名待改)。
 
-**当前健康状态**:主引擎 nano-banana 已定案并线上终验通过(生成/水印/额度/下载/重放全绿)。`/api/health` 返回 `buildTag: studio-v5-nano-wm`,可用它判断部署是否就绪。
+**当前健康状态**:主引擎 nano-banana 已定案并线上终验通过(生成/水印/额度/下载/重放全绿)。`/api/health` 返回 `buildTag: studio-v6-retry`(免费重试机制上线后升号),可用它判断部署是否就绪。
 
 **正在执行的工单(创始人 3 项,做完一项交一项)**:
 - ✅ **第一项 License 核查**——已闭环:nano-banana=Gemini 2.5 Flash Image GA版,经 Replicate 官方渠道**可商用可销售、输出归客户**。档案 [docs/License核查-NanoBanana-2026-0713.md](docs/License核查-NanoBanana-2026-0713.md)。
-- ⏳ **第二项 免费重试机制**(下一步,尚未动工):抄竞品 Pet Canvas 的"预览不满意可免费重试"。要求:重试可重生成同风格或换风格;上限按成本测算给创始人建议数字(创始人倾向 3);计数写进订单系统防刷(同图无限白嫖要挡,建议按 anonId+图片hash 记重试次数);页面文案 "Not quite right? Retry for free — we want it to look exactly like them."。**注意**:现有逻辑是每次生成都消耗免费额度(consumeFreeTry),重试机制要改成"首次消耗、N 次重试不额外消耗"。
-- ⏳ **第三项 SEO 博客**(第二项之后):开 /blog 极简板块;首篇英文《Best AI Pet Portrait Generators in 2026 — We Tested Them With the Same Photo》,诚实横评 Pet Canvas/Pawcaso/PetBooth/Lensa/NightCafe+我们(能测的测,不能测的引用公开信息注明,🔴不贬低不编造);差异化卖点如实写(全套$19.99 vs 竞品单张$19.99、免费预览、免费重试、We never guess);基础 SEO(title/meta/结构化标题/图片alt/速度);再列后续 5 个选题清单给创始人。
+- ✅ **第二项 免费重试机制**——**已完成并本地真机 6 场景实测通过**(用白猫+博美正脸/背影真实照走全链,含真引擎+面部闸门)。做法见下方专章。核心:按 `anonId+图片sha256hash` 记生成次数,**每次"消耗"(免费额度或积分)后送 N 次同图免费重试(可同风格可换风格)**,周期性刷新;**N=2(创始人拍板,`FREE_RETRIES_PER_PORTRAIT`)**;文案 "Not quite right? Retry for free — we want it to look exactly like them." 已上结果页。**注**:本地已跑通,但按铁律线上部署后仍建议复跑一遍确认(Blob 后端路径本地是内存兜底,线上走真 Blob)。
+- ⏳ **第三项 SEO 博客**(下一步,尚未动工):开 /blog 极简板块;首篇英文《Best AI Pet Portrait Generators in 2026 — We Tested Them With the Same Photo》,诚实横评 Pet Canvas/Pawcaso/PetBooth/Lensa/NightCafe+我们(能测的测,不能测的引用公开信息注明,🔴不贬低不编造);差异化卖点如实写(全套$19.99 vs 竞品单张$19.99、免费预览、免费重试、We never guess);基础 SEO(title/meta/结构化标题/图片alt/速度);再列后续 5 个选题清单给创始人。
 
 **关键工程决策与坑(避免重蹈)**:
 - 存储是 **Vercel Blob 私有模式**,读写都要 `access:"private"` + `get(pathname,{useCache:false})`;凭证解析走 `src/lib/blobToken.ts`(兼容自定义前缀)。head() 只收 URL 不收路径。
@@ -23,6 +23,35 @@
 **测试素材(仅本地,已 gitignore)**:`微信图片_*.jpg`(创始人博美正脸+背影)、`6ed78b6a…jpg`(白猫)、`测试对比/`(所有横评样张)。`.env.local` 有 REPLICATE_API_TOKEN(本地实验用,勿提交)。
 
 ---
+
+## 免费重试机制(2026-07-13,工单第二项,✅ 本地真机实测通过)
+
+竞品 Pet Canvas 的"预览不满意可免费重试"抄进来了。**目标**:让客户敢多试几次,直到"看起来就是它"。
+
+**改了什么**:
+- **新 `src/lib/retryStore.ts`**:按 `anonId + 图片sha256hash` 记该图的累计生成次数;Blob 私有后端 + 内存兜底(镜像 userStore)。防刷关键=**重试按图片hash 绑定,不按风格**——所以"重试"只会重画已经付过费的那张宠物照,换一只宠物=重新计费,堵死"同会话无限白嫖不同宠物"的洞。
+- **计费模型(周期性)**:每次**消耗**(免费额度或积分)后送 `FREE_RETRIES` 次同图免费重试(可同风格可换风格),之后若再消耗一次又刷新一批。即生成序列 `charged, free, free, free, charged, free, free, free…`。核心函数 `retryState(priorGenerations)` 返回 `{isFreeRetry, retriesLeftAfter}`,已用节点脚本验证 8 连生成的计费/剩余数列完全正确(charged 落在第1、5次,retriesLeftAfter 走 3→0 再刷新)。
+- **`generate/route.ts`**:算图 hash → 查次数 → `isFreeRetry` 为真则**跳过额度/积分检查与扣减**;成功后先 `recordPhotoGeneration` 再按需扣额度;返回体加 `wasFreeRetry` / `retriesLeft`。**失败不记次数、不扣费**(重试也一样)。
+- **前端 `StudioPage.tsx`**:结果页在有剩余重试时显示金句 **"Not quite right? Retry for free — we want it to look exactly like them."** + 剩余次数;加"Retry free — same style"按钮,"Try another style"在重试期内标注 free;confirm 页文案区分"免费重试/消耗额度";换新图自动重置 `retriesLeft`。
+- **`/api/health` buildTag → `studio-v6-retry`**(部署轮询)。
+
+**成本测算与 N 值定案**:单次生成 ≈ moondream2 闸门$0.001 + nano-banana$0.039 + esrgan x2$0.004 ≈ **$0.044**。
+- **N=2(创始人拍板)**:每次消耗最多带 2 免费重试=3 次生成。免费层每个 anonId 最坏敞口 = FREE_TRIES(3) × 3 = **9 次 ≈ $0.40/anon**(3 张不同图各拉满重试)。真实非恶意用户:1 张图试 1–2 次 ≈ **$0.09–0.13**。
+- (参考:N=3 曾测算 3×4=12 次≈$0.53/anon,创始人选了更省的 N=2。)
+- **背板**(未动主逻辑):IP 日限 `FREE_PREVIEWS_PER_DAY` **5→15**(现在每次生成含重试都计数,5 会误伤正常多图重试用户;15≈3图拉满 9 次+余量);全站日闸 `DAILY_RESTORE_LIMIT` 500;面部闸门先挡非宠物图(重试也过闸,不清晰照不会白烧)。
+- 全部可 env 调,无需改码:`FREE_RETRIES_PER_PORTRAIT`(默认2) / `FREE_PREVIEWS_PER_DAY`(默认15) / `FREE_TRIES`(默认3)。
+
+**本地真机实测(2026-07-13,白猫+博美真实照,真引擎+真闸门,同一 anonId)**:6 场景全绿——
+| # | 照片 | 风格 | wasFreeRetry | freeLeft | retriesLeft |
+|---|------|------|--------------|----------|-------------|
+| 1 | 白猫 | watercolor | false 计费 | 3→2 | 2 |
+| 2 | 白猫 | pop-art(换风格) | **true 免费** | 2 | 1 |
+| 3 | 白猫 | watercolor | **true 免费** | 2 | 0 |
+| 4 | 白猫 | watercolor | false 重新计费(新周期) | 2→1 | 2 |
+| 5 | 博美**背影** | — | 面部闸门 422 no-face | 1 不变 | — |
+| 6 | 博美**正脸** | watercolor | false 独立计费(换图=不同hash) | 1→0 | 2 |
+
+证明:首次消耗、N=2 次重试免费、可换风格(#2)、用尽后重新计费(#4)、按图 hash 绑定换宠物独立计费+独立重试批(#6)、被闸门拒/网络超时不扣费(#5 及一次 moondream2 connect-timeout 均 freeLeft 不减)。`next build`+eslint+tsc 全绿。**线上部署后建议复跑一遍**(本地是内存兜底,线上走真 Blob 的 `retries/<anonId>-<hash>.json`;Replicate 余额 <$5 会 429,复跑前充值)。
 
 ## 当前状态(2026-07-11 晚,项目转向完成并上线,七步全链验收通过 ✅)
 
